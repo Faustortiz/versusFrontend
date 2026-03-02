@@ -1,5 +1,5 @@
 // src/pages/ClientPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   getSolicitud,
@@ -32,6 +32,12 @@ const LS_LAST_CODE_KEY = "versus_last_tracking_code";
 
 export default function ClientPage() {
   const location = useLocation();
+
+  // --- Refs para scroll/foco ---
+  const crearRef = useRef(null);
+  const seguimientoRef = useRef(null);
+  const nombreInputRef = useRef(null);
+  const codigoInputRef = useRef(null);
 
   // --- Cliente: seguimiento ---
   const [codigo, setCodigo] = useState("");
@@ -152,9 +158,7 @@ export default function ClientPage() {
 
     // Si no hay query param, usamos el último guardado en localStorage
     const saved = localStorage.getItem(LS_LAST_CODE_KEY);
-    if (saved) {
-      setCodigo(saved);
-    }
+    if (saved) setCodigo(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
@@ -261,18 +265,147 @@ export default function ClientPage() {
     }
   }
 
+  // --- Scroll + foco (UX) ---
+  function irACrear() {
+    crearRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => nombreInputRef.current?.focus(), 350);
+  }
+
+  function irASeguimiento() {
+    seguimientoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => codigoInputRef.current?.focus(), 350);
+  }
+
+  // eslint-disable-next-line no-unused-vars
   const estado = data?.estado;
 
   return (
     <div>
       {error && <div style={{ marginTop: 12, color: "crimson" }}>{error}</div>}
 
+      {/* HERO / PORTADA */}
+      <div
+        style={{
+          borderRadius: 16,
+          padding: 22,
+          background: "linear-gradient(180deg, #eef6ff 0%, #ffffff 70%)",
+          border: "1px solid #e6eef8",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 28, fontWeight: 900, color: "#0b2a4a" }}>
+          Versus <span style={{ fontWeight: 700 }}>Reparaciones</span>
+        </div>
+
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 34,
+            fontWeight: 900,
+            color: "#0b2a4a",
+            lineHeight: 1.05,
+          }}
+        >
+          Reparamos tu celular <br /> sin que salgas de casa.
+        </div>
+
+        <div style={{ marginTop: 10, fontSize: 18, fontWeight: 700, color: "#1d7a3a" }}>
+          Retiro y entrega en el día.
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            display: "flex",
+            gap: 12,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            onClick={irACrear}
+            style={{
+              padding: "14px 18px",
+              borderRadius: 14,
+              border: "1px solid #1f8f3a",
+              background: "linear-gradient(180deg, #38c463 0%, #1f8f3a 100%)",
+              color: "white",
+              fontWeight: 900,
+              fontSize: 18,
+              cursor: "pointer",
+              minWidth: 220,
+              boxShadow: "0 10px 18px rgba(31,143,58,0.25)",
+            }}
+          >
+            ✅ Crear solicitud
+          </button>
+
+          <button
+            onClick={irASeguimiento}
+            style={{
+              padding: "14px 18px",
+              borderRadius: 14,
+              border: "1px solid #1b64c6",
+              background: "linear-gradient(180deg, #2e8bff 0%, #1b64c6 100%)",
+              color: "white",
+              fontWeight: 900,
+              fontSize: 18,
+              cursor: "pointer",
+              minWidth: 220,
+              boxShadow: "0 10px 18px rgba(27,100,198,0.25)",
+            }}
+          >
+            🔑 Ingresar código
+          </button>
+        </div>
+
+        {/* “Píldoras” de problemas */}
+        <div style={{ marginTop: 18, display: "grid", gap: 10, justifyContent: "center" }}>
+          {[
+            { icon: "📱", text: "Pantalla rota" },
+            { icon: "🔋", text: "No carga" },
+            { icon: "⏻", text: "No enciende" },
+          ].map((it) => (
+            <div
+              key={it.text}
+              style={{
+                width: 260,
+                padding: "12px 14px",
+                borderRadius: 14,
+                background: "white",
+                border: "1px solid #e6eef8",
+                boxShadow: "0 8px 18px rgba(0,0,0,0.05)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                justifyContent: "flex-start",
+              }}
+            >
+              <div style={{ fontSize: 20 }}>{it.icon}</div>
+              <div style={{ fontWeight: 800, color: "#0b2a4a" }}>{it.text}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* CREAR SOLICITUD */}
-      <div style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
+      <div
+        ref={crearRef}
+        style={{
+          marginTop: 16,
+          border: "1px solid #ddd",
+          borderRadius: 12,
+          padding: 16,
+          background: "white",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.04)",
+        }}
+      >
         <h2 style={{ marginTop: 0 }}>Crear solicitud</h2>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <input
+            ref={nombreInputRef}
             placeholder="Nombre"
             value={form.nombreCliente}
             onChange={(e) => setField("nombreCliente", e.target.value)}
@@ -343,18 +476,26 @@ export default function ClientPage() {
         <button
           onClick={onCrearSolicitud}
           disabled={loading}
-          style={{ marginTop: 12, padding: "10px 14px" }}
+          style={{
+            marginTop: 12,
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #1f8f3a",
+            background: "linear-gradient(180deg, #38c463 0%, #1f8f3a 100%)",
+            color: "white",
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
         >
           {loading ? "Creando..." : "Crear solicitud"}
         </button>
 
         {data?.codigoSeguimiento && (
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 12 }}>
             <div>
               Código generado: <b>{data.codigoSeguimiento}</b>
             </div>
 
-            {/* ✅ Link de seguimiento */}
             <div style={{ marginTop: 8 }}>
               Link de seguimiento:{" "}
               <a href={buildTrackingUrl(data.codigoSeguimiento)} target="_blank" rel="noreferrer">
@@ -362,7 +503,6 @@ export default function ClientPage() {
               </a>
             </div>
 
-            {/* ✅ Copiar / WhatsApp */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
               <button onClick={() => copiarTexto(data.codigoSeguimiento)} disabled={loading}>
                 Copiar código
@@ -384,11 +524,22 @@ export default function ClientPage() {
       </div>
 
       {/* SEGUIMIENTO */}
-      <div style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
+      <div
+        ref={seguimientoRef}
+        style={{
+          marginTop: 16,
+          border: "1px solid #ddd",
+          borderRadius: 12,
+          padding: 16,
+          background: "white",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.04)",
+        }}
+      >
         <h2 style={{ marginTop: 0 }}>Seguimiento por código</h2>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
+            ref={codigoInputRef}
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
             placeholder="Ingresá tu código (ej: VS-XXXXXX)"
@@ -403,7 +554,11 @@ export default function ClientPage() {
           <button onClick={() => copiarTexto(codigo.trim())} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
             Copiar código
           </button>
-          <button onClick={() => copiarTexto(buildTrackingUrl(codigo.trim()))} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
+          <button
+            onClick={() => copiarTexto(buildTrackingUrl(codigo.trim()))}
+            disabled={loading || !codigo.trim()}
+            style={{ padding: "10px 14px" }}
+          >
             Copiar link
           </button>
           <button onClick={() => compartirWhatsapp(codigo.trim())} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
@@ -421,7 +576,7 @@ export default function ClientPage() {
               </div>
               <div>
                 <div style={{ fontSize: 12, color: "#666" }}>Estado</div>
-                <EstadoBadge estado={estado} />
+                <EstadoBadge estado={data.estado} />
               </div>
             </div>
 
@@ -440,7 +595,7 @@ export default function ClientPage() {
             )}
 
             {/* Aceptar/Rechazar */}
-            {estado === "PRESUPUESTADO" && (
+            {data.estado === "PRESUPUESTADO" && (
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                 <button onClick={onAceptar} disabled={loading}>
                   Aceptar
@@ -452,11 +607,11 @@ export default function ClientPage() {
             )}
 
             {/* PAGO (cliente) */}
-            {(estado === "LISTO_PARA_ENTREGA" || estado === "PAGO_PENDIENTE_VERIFICACION") && (
+            {(data.estado === "LISTO_PARA_ENTREGA" || data.estado === "PAGO_PENDIENTE_VERIFICACION") && (
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px dashed #ccc" }}>
                 <h3 style={{ margin: 0 }}>Pago</h3>
 
-                {estado === "PAGO_PENDIENTE_VERIFICACION" && (
+                {data.estado === "PAGO_PENDIENTE_VERIFICACION" && (
                   <div style={{ marginTop: 10 }}>
                     <div style={{ fontWeight: 700 }}>Comprobante enviado</div>
                     <div style={{ color: "#666" }}>Estamos verificando el pago.</div>
@@ -472,7 +627,7 @@ export default function ClientPage() {
                   </div>
                 )}
 
-                {estado === "LISTO_PARA_ENTREGA" && (
+                {data.estado === "LISTO_PARA_ENTREGA" && (
                   <div style={{ marginTop: 10 }}>
                     {!data.metodoPago && (
                       <>
