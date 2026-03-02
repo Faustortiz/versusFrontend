@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import AdminPage from "./pages/AdminPage";
-import ClientPage from "./pages/ClientePage";
+import ClientePage from "./pages/ClientePage";
 import LandingPage from "./pages/LandingPage";
 
 function Layout() {
@@ -18,8 +18,8 @@ function Layout() {
       <div style={{ marginTop: 16 }}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/crear" element={<ClientPage mode="crear" />} />
-          <Route path="/seguimiento" element={<ClientPage mode="seguimiento" />} />
+          <Route path="/crear" element={<ClientePage mode="crear" />} />
+          <Route path="/seguimiento" element={<ClientePage mode="seguimiento" />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
