@@ -1,37 +1,78 @@
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import AdminPage from "./pages/AdminPage";
-import ClientePage from "./pages/ClientePage";
-import LandingPage from "./pages/LandingPage";
+// src/pages/LandingPage.jsx
+import { Link } from "react-router-dom";
+import heroImg from "../assets/hero-versus.png";
 
-function Layout() {
-  const loc = useLocation();
-  const isAdmin = loc.pathname.startsWith("/admin");
-
+export default function LandingPage() {
   return (
-    <div style={{ maxWidth: 980, margin: "40px auto", padding: 16, fontFamily: "system-ui" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ margin: 0 }}>Versus – Web v1</h1>
+    <div
+      style={{
+        borderRadius: 16,
+        overflow: "hidden",
+        border: "1px solid #e6eef8",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+        background: "#fff",
+      }}
+    >
+      <div style={{ position: "relative" }}>
+        <img
+          src={heroImg}
+          alt="Versus Reparaciones"
+          style={{ width: "100%", height: "auto", display: "block" }}
+        />
 
-        {isAdmin ? <Link to="/" style={{ textDecoration: "none" }}>Volver a Cliente</Link> : null}
-      </header>
+        {/* Botones sobre la imagen */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "44%",
+            display: "flex",
+            justifyContent: "center",
+            gap: 14,
+            padding: "0 14px",
+            flexWrap: "wrap",
+          }}
+        >
+          <Link to="/crear" style={{ textDecoration: "none" }}>
+            <button
+              style={{
+                padding: "14px 18px",
+                borderRadius: 14,
+                border: "1px solid #1f8f3a",
+                background: "linear-gradient(180deg, #38c463 0%, #1f8f3a 100%)",
+                color: "white",
+                fontWeight: 900,
+                fontSize: 18,
+                cursor: "pointer",
+                minWidth: 220,
+                boxShadow: "0 10px 18px rgba(31,143,58,0.25)",
+              }}
+            >
+              ✅ Crear solicitud
+            </button>
+          </Link>
 
-      <div style={{ marginTop: 16 }}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/crear" element={<ClientePage mode="crear" />} />
-          <Route path="/seguimiento" element={<ClientePage mode="seguimiento" />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          <Link to="/seguimiento" style={{ textDecoration: "none" }}>
+            <button
+              style={{
+                padding: "14px 18px",
+                borderRadius: 14,
+                border: "1px solid #1b64c6",
+                background: "linear-gradient(180deg, #2e8bff 0%, #1b64c6 100%)",
+                color: "white",
+                fontWeight: 900,
+                fontSize: 18,
+                cursor: "pointer",
+                minWidth: 220,
+                boxShadow: "0 10px 18px rgba(27,100,198,0.25)",
+              }}
+            >
+              🔑 Ingresar código
+            </button>
+          </Link>
+        </div>
       </div>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Layout />
-    </BrowserRouter>
   );
 }
