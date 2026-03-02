@@ -39,6 +39,9 @@ export default function ClientPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ✅ NUEVO: feedback copiar
+  const [copiado, setCopiado] = useState(false);
+
   // --- Comprobante ---
   const [comprobanteFile, setComprobanteFile] = useState(null);
   const [referenciaComprobante, setReferenciaComprobante] = useState("");
@@ -55,13 +58,12 @@ export default function ClientPage() {
   });
   const [mediaFiles, setMediaFiles] = useState([]); // 0..3
 
-  // ✅ Al cargar la página: recuperar último código guardado
+  // ✅ Recuperar código guardado al abrir
   useEffect(() => {
     const saved = localStorage.getItem(LS_LAST_CODE_KEY);
-    if (saved && !codigo) {
-      setCodigo(saved);
-    }
-  }, []); // solo una vez
+    if (saved && !codigo) setCodigo(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function setField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -72,6 +74,31 @@ export default function ClientPage() {
     return `${API_HOST}${relativeUrl}`;
   }
 
+  // ✅ NUEVO: copiar al portapapeles
+  async function copiarCodigo(texto) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1500);
+    // eslint-disable-next-line no-unused-vars
+    } catch (e) {
+      setError("No se pudo copiar el código. Copialo manualmente.");
+    }
+  }
+
+  // ✅ NUEVO: compartir por WhatsApp (gratis)
+  function compartirWhatsapp(code) {
+    const mensaje =
+      `Hola 👋\n\n` +
+      `Este es mi código de seguimiento en Versus Reparaciones:\n\n` +
+      `🔧 Código: ${code}\n\n` +
+      `Podés seguir mi reparación en la web.`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // ✅ NUEVO: borrar código guardado
   function borrarCodigoGuardado() {
     localStorage.removeItem(LS_LAST_CODE_KEY);
     setCodigo("");
@@ -84,7 +111,7 @@ export default function ClientPage() {
     const c = (cod ?? codigo).trim();
     if (!c) return;
 
-    // ✅ Guardar último código consultado
+    // ✅ guardar último código consultado
     localStorage.setItem(LS_LAST_CODE_KEY, c);
 
     setError("");
@@ -129,12 +156,10 @@ export default function ClientPage() {
         descripcionFalla: form.descripcionFalla.trim(),
       });
 
-      // backend devuelve codigoSeguimiento
-      const code = creada?.codigoSeguimiento || creada?.trackingCode || creada?.codigo;
+      const code = creada?.codigoSeguimiento;
 
       if (code) {
         setCodigo(code);
-        // (extra) por si no lo guardaste en Api.js o si el backend cambia:
         localStorage.setItem(LS_LAST_CODE_KEY, code);
       }
 
@@ -301,7 +326,21 @@ export default function ClientPage() {
 
         {data?.codigoSeguimiento && (
           <div style={{ marginTop: 10 }}>
-            Código generado: <b>{data.codigoSeguimiento}</b>
+            <div>
+              Código generado: <b>{data.codigoSeguimiento}</b>
+            </div>
+
+            {/* ✅ NUEVO: Copiar + WhatsApp + feedback */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+              <button onClick={() => copiarCodigo(data.codigoSeguimiento)} disabled={loading}>
+                Copiar código
+              </button>
+              <button onClick={() => compartirWhatsapp(data.codigoSeguimiento)} disabled={loading}>
+                Compartir por WhatsApp
+              </button>
+              {copiado && <span style={{ color: "green", fontWeight: 700 }}>Copiado ✅</span>}
+            </div>
+
             <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
               Tip: tu código queda guardado automáticamente en este dispositivo.
             </div>
@@ -318,24 +357,27 @@ export default function ClientPage() {
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
             placeholder="Ingresá tu código (ej: VS-XXXXXX)"
-            style={{ flex: 1, minWidth: 220, padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+            style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid #ccc", minWidth: 220 }}
           />
-          <button
-            onClick={() => buscar()}
-            disabled={loading || !codigo.trim()}
-            style={{ padding: "10px 14px" }}
-          >
+
+          <button onClick={() => buscar()} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
             {loading ? "Cargando..." : "Buscar"}
           </button>
 
-          <button
-            onClick={borrarCodigoGuardado}
-            disabled={loading && !!codigo.trim()}
-            style={{ padding: "10px 14px" }}
-            title="Borra el último código guardado en este dispositivo"
-          >
+          {/* ✅ NUEVO: borrar */}
+          <button onClick={borrarCodigoGuardado} disabled={loading} style={{ padding: "10px 14px" }}>
             Borrar
           </button>
+
+          {/* ✅ NUEVO: copiar / whatsapp desde el input */}
+          <button onClick={() => copiarCodigo(codigo.trim())} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
+            Copiar
+          </button>
+          <button onClick={() => compartirWhatsapp(codigo.trim())} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
+            WhatsApp
+          </button>
+
+          {copiado && <span style={{ color: "green", fontWeight: 700, alignSelf: "center" }}>Copiado ✅</span>}
         </div>
 
         {data && (
@@ -368,12 +410,8 @@ export default function ClientPage() {
             {/* Aceptar/Rechazar */}
             {estado === "PRESUPUESTADO" && (
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <button onClick={onAceptar} disabled={loading}>
-                  Aceptar
-                </button>
-                <button onClick={onRechazar} disabled={loading}>
-                  Rechazar
-                </button>
+                <button onClick={onAceptar} disabled={loading}>Aceptar</button>
+                <button onClick={onRechazar} disabled={loading}>Rechazar</button>
               </div>
             )}
 
@@ -445,7 +483,11 @@ export default function ClientPage() {
                               border: "1px solid #ccc",
                             }}
                           />
-                          <button onClick={onSubirComprobante} disabled={loading || !comprobanteFile} style={{ marginTop: 8 }}>
+                          <button
+                            onClick={onSubirComprobante}
+                            disabled={loading || !comprobanteFile}
+                            style={{ marginTop: 8 }}
+                          >
                             Subir comprobante
                           </button>
 
