@@ -1,5 +1,5 @@
 // src/pages/ClientPage.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getSolicitud,
   getMedia,
@@ -27,6 +27,7 @@ function EstadoBadge({ estado }) {
 }
 
 const API_HOST = import.meta.env.VITE_API_BASE_URL || "http://localhost:9090";
+const LS_LAST_CODE_KEY = "versus_last_tracking_code";
 
 export default function ClientPage() {
   // --- Cliente: seguimiento ---
@@ -54,6 +55,14 @@ export default function ClientPage() {
   });
   const [mediaFiles, setMediaFiles] = useState([]); // 0..3
 
+  // ✅ Al cargar la página: recuperar último código guardado
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_LAST_CODE_KEY);
+    if (saved && !codigo) {
+      setCodigo(saved);
+    }
+  }, []); // solo una vez
+
   function setField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
@@ -63,9 +72,20 @@ export default function ClientPage() {
     return `${API_HOST}${relativeUrl}`;
   }
 
+  function borrarCodigoGuardado() {
+    localStorage.removeItem(LS_LAST_CODE_KEY);
+    setCodigo("");
+    setData(null);
+    setMedia([]);
+    setError("");
+  }
+
   async function buscar(cod = null) {
     const c = (cod ?? codigo).trim();
     if (!c) return;
+
+    // ✅ Guardar último código consultado
+    localStorage.setItem(LS_LAST_CODE_KEY, c);
 
     setError("");
     setLoading(true);
@@ -109,13 +129,22 @@ export default function ClientPage() {
         descripcionFalla: form.descripcionFalla.trim(),
       });
 
-      setCodigo(creada.codigoSeguimiento);
+      // backend devuelve codigoSeguimiento
+      const code = creada?.codigoSeguimiento || creada?.trackingCode || creada?.codigo;
 
-      if (mediaFiles.length > 0) {
-        await subirMediaCliente(creada.codigoSeguimiento, mediaFiles);
+      if (code) {
+        setCodigo(code);
+        // (extra) por si no lo guardaste en Api.js o si el backend cambia:
+        localStorage.setItem(LS_LAST_CODE_KEY, code);
       }
 
-      await buscar(creada.codigoSeguimiento);
+      if (mediaFiles.length > 0 && code) {
+        await subirMediaCliente(code, mediaFiles);
+      }
+
+      if (code) {
+        await buscar(code);
+      }
     } catch (e) {
       setError(e?.message || "Error creando solicitud");
     } finally {
@@ -262,13 +291,20 @@ export default function ClientPage() {
           )}
         </div>
 
-        <button onClick={onCrearSolicitud} disabled={loading} style={{ marginTop: 12, padding: "10px 14px" }}>
+        <button
+          onClick={onCrearSolicitud}
+          disabled={loading}
+          style={{ marginTop: 12, padding: "10px 14px" }}
+        >
           {loading ? "Creando..." : "Crear solicitud"}
         </button>
 
         {data?.codigoSeguimiento && (
           <div style={{ marginTop: 10 }}>
             Código generado: <b>{data.codigoSeguimiento}</b>
+            <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+              Tip: tu código queda guardado automáticamente en este dispositivo.
+            </div>
           </div>
         )}
       </div>
@@ -277,15 +313,28 @@ export default function ClientPage() {
       <div style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>Seguimiento por código</h2>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
             placeholder="Ingresá tu código (ej: VS-XXXXXX)"
-            style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+            style={{ flex: 1, minWidth: 220, padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
           />
-          <button onClick={() => buscar()} disabled={loading || !codigo.trim()} style={{ padding: "10px 14px" }}>
+          <button
+            onClick={() => buscar()}
+            disabled={loading || !codigo.trim()}
+            style={{ padding: "10px 14px" }}
+          >
             {loading ? "Cargando..." : "Buscar"}
+          </button>
+
+          <button
+            onClick={borrarCodigoGuardado}
+            disabled={loading && !!codigo.trim()}
+            style={{ padding: "10px 14px" }}
+            title="Borra el último código guardado en este dispositivo"
+          >
+            Borrar
           </button>
         </div>
 
@@ -319,8 +368,12 @@ export default function ClientPage() {
             {/* Aceptar/Rechazar */}
             {estado === "PRESUPUESTADO" && (
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <button onClick={onAceptar} disabled={loading}>Aceptar</button>
-                <button onClick={onRechazar} disabled={loading}>Rechazar</button>
+                <button onClick={onAceptar} disabled={loading}>
+                  Aceptar
+                </button>
+                <button onClick={onRechazar} disabled={loading}>
+                  Rechazar
+                </button>
               </div>
             )}
 
@@ -392,11 +445,7 @@ export default function ClientPage() {
                               border: "1px solid #ccc",
                             }}
                           />
-                          <button
-                            onClick={onSubirComprobante}
-                            disabled={loading || !comprobanteFile}
-                            style={{ marginTop: 8 }}
-                          >
+                          <button onClick={onSubirComprobante} disabled={loading || !comprobanteFile} style={{ marginTop: 8 }}>
                             Subir comprobante
                           </button>
 

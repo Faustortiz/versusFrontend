@@ -1,14 +1,26 @@
 // Api.js
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:9090";
 
+const LS_LAST_CODE_KEY = "versus_last_tracking_code";
+
 export async function crearSolicitud(payload) {
   const res = await fetch(`${API_BASE}/public/solicitudes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+
   if (!res.ok) throw new Error("No se pudo crear la solicitud");
-  return res.json();
+
+  const data = await res.json();
+
+  // ✅ guardado automático (por si el usuario cierra la pestaña)
+  const code = data?.codigoSeguimiento || data?.trackingCode || data?.codigo;
+  if (code) {
+    localStorage.setItem(LS_LAST_CODE_KEY, code);
+  }
+
+  return data;
 }
 
 // files: array de File (0..3)
