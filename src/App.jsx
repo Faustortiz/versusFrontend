@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import ClientPage from "./pages/ClientPage";
+import ClientPage from "./pages/ClientePage";
 import AdminPage from "./pages/AdminPage";
 import LandingPage from "./pages/LandingPage";
 
