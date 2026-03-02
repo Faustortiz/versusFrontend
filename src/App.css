@@ -1,0 +1,29 @@
+/* src/App.css */
+
+/* El template de Vite mete estilos que rompen layout real.
+   Acá dejamos el root neutro para que tu App.jsx controle el ancho. */
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left; /* <-- clave: no centrado por defecto */
+}
+
+/* Helpers opcionales (si querés usarlos en el futuro) */
+.container {
+  max-width: 980px;
+  margin: 24px auto;
+  padding: 16px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e6e8ec;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.muted {
+  color: #667085;
+  font-size: 12px;
+}
