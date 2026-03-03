@@ -73,6 +73,8 @@ function EstadoBadge({ estado }) {
 }
 
 export default function ClientePage({ mode }) {
+     console.log("MODE RECIBIDO:", mode);
+
   const location = useLocation();
 
   // --- Cliente: seguimiento ---
