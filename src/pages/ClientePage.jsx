@@ -107,6 +107,8 @@ export default function ClientePage({ mode }) {
 
   const PUBLIC_BASE = import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin;
 
+  const isMobile = window.matchMedia("(max-width: 640px)").matches;
+
   const showCrear = !mode || mode === "crear";
   const showSeg = !mode || mode === "seguimiento";
 
@@ -322,7 +324,7 @@ export default function ClientePage({ mode }) {
         <TechCard>
           <h2 style={{ marginTop: 0, color: "#0b2a4a" }}>Crear solicitud</h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr": "1fr 1fr", gap: 10 }}>
             <input
               placeholder="Nombre"
               value={form.nombreCliente}
