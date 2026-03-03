@@ -1,486 +1,471 @@
 // src/pages/AdminPage.jsx
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  getSolicitud,
-  getMedia,
   adminListarSolicitudes,
   adminPresupuestar,
   adminProgramarRetiro,
   adminMarcarRetirado,
-  adminMarcarRecibidoEnTaller,
   adminIniciarReparacion,
   adminMarcarListo,
   adminConfirmarPago,
-  adminConfirmarPagoDesdeComprobante,
   adminMarcarEntregado,
+  adminMarcarRecibidoEnTaller,
+  adminConfirmarPagoDesdeComprobante,
+  getSolicitud,
 } from "../Api";
 
-function EstadoBadge({ estado }) {
+function TechCard({ children, style }) {
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        border: "1px solid rgba(20, 80, 160, 0.18)",
+        background: "rgba(255,255,255,0.75)",
+        backdropFilter: "blur(10px)",
+        boxShadow: "0 14px 32px rgba(0,0,0,0.08)",
+        padding: 18,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({ title, subtitle }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 18, fontWeight: 950, color: "#0b2a4a" }}>{title}</div>
+      {subtitle ? (
+        <div style={{ marginTop: 4, color: "#2b4b66", fontWeight: 700, fontSize: 13 }}>
+          {subtitle}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Input({ style, ...props }) {
+  return (
+    <input
+      {...props}
+      style={{
+        width: "100%",
+        padding: 12,
+        borderRadius: 12,
+        border: "1px solid rgba(27,100,198,0.25)",
+        outline: "none",
+        background: "rgba(255,255,255,0.85)",
+        ...style,
+      }}
+    />
+  );
+}
+
+function Select({ style, ...props }) {
+  return (
+    <select
+      {...props}
+      style={{
+        width: "100%",
+        padding: 12,
+        borderRadius: 12,
+        border: "1px solid rgba(27,100,198,0.25)",
+        outline: "none",
+        background: "rgba(255,255,255,0.85)",
+        ...style,
+      }}
+    />
+  );
+}
+
+function Button({ variant = "primary", style, ...props }) {
+  const base = {
+    padding: "12px 14px",
+    borderRadius: 14,
+    fontWeight: 900,
+    cursor: "pointer",
+    border: "1px solid transparent",
+    boxShadow: "0 10px 18px rgba(0,0,0,0.06)",
+  };
+
+  const variants = {
+    primary: {
+      border: "1px solid #1b64c6",
+      background: "linear-gradient(180deg, #2e8bff 0%, #1b64c6 100%)",
+      color: "white",
+      boxShadow: "0 10px 18px rgba(27,100,198,0.25)",
+    },
+    success: {
+      border: "1px solid #1f8f3a",
+      background: "linear-gradient(180deg, #38c463 0%, #1f8f3a 100%)",
+      color: "white",
+      boxShadow: "0 10px 18px rgba(31,143,58,0.25)",
+    },
+    ghost: {
+      border: "1px solid rgba(27,100,198,0.30)",
+      background: "rgba(255,255,255,0.75)",
+      color: "#0b2a4a",
+    },
+    danger: {
+      border: "1px solid rgba(220, 38, 38, 0.35)",
+      background: "rgba(255,255,255,0.75)",
+      color: "#b91c1c",
+    },
+  };
+
+  return <button {...props} style={{ ...base, ...variants[variant], ...style }} />;
+}
+
+function Badge({ children }) {
   return (
     <span
       style={{
         padding: "6px 10px",
-        border: "1px solid #ccc",
+        border: "1px solid rgba(27,100,198,0.25)",
         borderRadius: 999,
         fontSize: 13,
+        fontWeight: 900,
+        color: "#0b2a4a",
+        background: "rgba(255,255,255,0.7)",
       }}
     >
-      {estado}
+      {children}
     </span>
   );
 }
 
-const API_HOST = import.meta.env.VITE_API_BASE_URL || "http://localhost:9090";
-
 export default function AdminPage() {
-  const [adminEstado, setAdminEstado] = useState("");
-  const [adminLista, setAdminLista] = useState([]);
-
-  // detalle
-  const [codigo, setCodigo] = useState("");
-  const [data, setData] = useState(null);
-  const [media, setMedia] = useState([]);
-
-  // inputs admin
-  const [admPresMonto, setAdmPresMonto] = useState("");
-  const [admPresDetalle, setAdmPresDetalle] = useState("");
-  const [admRetiroFechaHora, setAdmRetiroFechaHora] = useState("");
-  const [admPagoMetodo, setAdmPagoMetodo] = useState("EFECTIVO");
-  const [admPagoMonto, setAdmPagoMonto] = useState("");
-  const [admPagoRef, setAdmPagoRef] = useState("");
+  const [estado, setEstado] = useState("");
+  const [items, setItems] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [selFull, setSelFull] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function fullFileUrl(relativeUrl) {
-    if (!relativeUrl) return null;
-    return `${API_HOST}${relativeUrl}`;
-  }
+  // Forms admin
+  const [presMonto, setPresMonto] = useState("");
+  const [presDetalle, setPresDetalle] = useState("");
+  const [retiroProgramadoPara, setRetiroProgramadoPara] = useState(""); // ISO local: 2026-03-03T18:00
+  const [pagoMetodo, setPagoMetodo] = useState("EFECTIVO");
+  const [pagoMonto, setPagoMonto] = useState("");
+  const [pagoRef, setPagoRef] = useState("");
 
-  function adminComprobanteUrlFromEntity(s) {
-    if (!s) return null;
-    if (s.comprobanteUrl) return s.comprobanteUrl;
-
-    const path = s.comprobantePath;
-    if (!path) return null;
-
-    const p = String(path).replaceAll("\\", "/");
-    if (p.startsWith("uploads/")) return "/files/" + p.substring("uploads/".length);
-    if (p.startsWith("comprobantes/")) return "/files/" + p;
-    return "/files/" + p;
-  }
-
-  async function cargarAdminLista() {
+  async function cargar() {
     setError("");
     setLoading(true);
     try {
-      const estado = adminEstado.trim() ? adminEstado.trim() : null;
-      const list = await adminListarSolicitudes(estado);
-      setAdminLista(list);
-    } catch (e) {
-      setError(e?.message || "Error cargando listado admin");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function buscarDetalle(cod = null) {
-    const c = (cod ?? codigo).trim();
-    if (!c) return;
-
-    setError("");
-    setLoading(true);
-    try {
-      const s = await getSolicitud(c);
-      if (!s) {
-        setData(null);
-        setMedia([]);
-        setError("No se encontró ese código.");
-        return;
+      const res = await adminListarSolicitudes(estado || null);
+      setItems(res || []);
+      // si ya había seleccionado, refrescamos
+      if (sel?.codigoSeguimiento) {
+        const fresh = await getSolicitud(sel.codigoSeguimiento);
+        setSelFull(fresh);
       }
-      setData(s);
-      const m = await getMedia(c);
-      setMedia(m);
     } catch (e) {
-      setError(e?.message || "Error consultando solicitud");
+      setError(e?.message || "No se pudo cargar admin");
     } finally {
       setLoading(false);
     }
   }
 
-  async function adminRun(fn) {
+  useEffect(() => {
+    cargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function seleccionar(item) {
+    setSel(item);
     setError("");
     setLoading(true);
     try {
-      const updated = await fn();
-      setData(updated);
-      await buscarDetalle(updated.codigoSeguimiento);
-      await cargarAdminLista();
+      const full = await getSolicitud(item.codigoSeguimiento);
+      setSelFull(full);
     } catch (e) {
-      setError(e?.message || "Error en acción admin");
+      setError(e?.message || "No se pudo cargar detalle");
     } finally {
       setLoading(false);
     }
   }
 
-  function parseNumberOrThrow(v, msg) {
-    const n = Number(String(v).replace(",", "."));
-    if (!Number.isFinite(n) || n <= 0) throw new Error(msg);
-    return n;
-  }
+  const selectedCode = selFull?.codigoSeguimiento;
 
-  const estado = data?.estado;
+  const canAct = useMemo(() => Boolean(selectedCode), [selectedCode]);
+
+  async function run(action) {
+    if (!selectedCode) return;
+    setError("");
+    setLoading(true);
+    try {
+      await action(selectedCode);
+      await cargar();
+      const full = await getSolicitud(selectedCode);
+      setSelFull(full);
+    } catch (e) {
+      setError(e?.message || "Error ejecutando acción");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div>
-      {error && <div style={{ marginTop: 12, color: "crimson" }}>{error}</div>}
+    <div style={{ display: "grid", gap: 14 }}>
+      {error ? (
+        <TechCard style={{ borderColor: "rgba(220,38,38,0.25)" }}>
+          <div style={{ color: "#b91c1c", fontWeight: 900 }}>{error}</div>
+        </TechCard>
+      ) : null}
 
-      {/* Panel listado */}
-      <div style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Admin – Solicitudes</h2>
+      <TechCard>
+        <SectionTitle title="Admin" subtitle="Listado y acciones sobre solicitudes." />
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <select
-            value={adminEstado}
-            onChange={(e) => setAdminEstado(e.target.value)}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
-          >
-            <option value="">Todos</option>
-            <option value="SOLICITADO">SOLICITADO</option>
-            <option value="PRESUPUESTADO">PRESUPUESTADO</option>
-            <option value="ACEPTADO">ACEPTADO</option>
-            <option value="RETIRO_PROGRAMADO">RETIRO_PROGRAMADO</option>
-            <option value="RETIRADO">RETIRADO</option>
-            <option value="RECIBIDO_EN_TALLER">RECIBIDO_EN_TALLER</option>
-            <option value="EN_REPARACION">EN_REPARACION</option>
-            <option value="LISTO_PARA_ENTREGA">LISTO_PARA_ENTREGA</option>
-            <option value="PAGO_PENDIENTE_VERIFICACION">PAGO_PENDIENTE_VERIFICACION</option>
-            <option value="PAGADO">PAGADO</option>
-            <option value="ENTREGADO">ENTREGADO</option>
-          </select>
-
-          <button onClick={cargarAdminLista} disabled={loading} style={{ padding: "8px 12px" }}>
-            {loading ? "Cargando..." : "Refrescar listado"}
-          </button>
-
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <input
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-              placeholder="Código (ej: VS-XXXXXX)"
-              style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", minWidth: 260 }}
-            />
-            <button onClick={() => buscarDetalle()} disabled={loading || !codigo.trim()}>
-              Ver detalle
-            </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ minWidth: 260 }}>
+            <Select value={estado} onChange={(e) => setEstado(e.target.value)}>
+              <option value="">Todos los estados</option>
+              <option value="CREADA">CREADA</option>
+              <option value="RECIBIDO_EN_TALLER">RECIBIDO_EN_TALLER</option>
+              <option value="PRESUPUESTADO">PRESUPUESTADO</option>
+              <option value="RETIRO_PROGRAMADO">RETIRO_PROGRAMADO</option>
+              <option value="RETIRADO">RETIRADO</option>
+              <option value="EN_REPARACION">EN_REPARACION</option>
+              <option value="LISTO_PARA_ENTREGA">LISTO_PARA_ENTREGA</option>
+              <option value="PAGO_PENDIENTE_VERIFICACION">PAGO_PENDIENTE_VERIFICACION</option>
+              <option value="ENTREGADO">ENTREGADO</option>
+              <option value="CANCELADO">CANCELADO</option>
+            </Select>
           </div>
+
+          <Button variant="primary" onClick={cargar} disabled={loading}>
+            {loading ? "Cargando..." : "Refrescar"}
+          </Button>
         </div>
+      </TechCard>
 
-        {adminLista.length === 0 ? (
-          <div style={{ marginTop: 12, color: "#666" }}>
-            No hay solicitudes cargadas (tocá “Refrescar listado”).
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto", marginTop: 12 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Código", "Cliente", "Estado", "Marca", "Modelo", "Acción"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        textAlign: "left",
-                        borderBottom: "1px solid #eee",
-                        padding: 10,
-                        fontSize: 13,
-                        color: "#333",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {adminLista.map((s) => (
-                  <tr key={s.id ?? s.codigoSeguimiento} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                    <td style={{ padding: 10, fontWeight: 700 }}>{s.codigoSeguimiento}</td>
-                    <td style={{ padding: 10 }}>{s.nombreCliente}</td>
-                    <td style={{ padding: 10 }}>{s.estado}</td>
-                    <td style={{ padding: 10 }}>{s.marca}</td>
-                    <td style={{ padding: 10 }}>{s.modelo}</td>
-                    <td style={{ padding: 10 }}>
-                      <button
-                        onClick={async () => {
-                          setCodigo(s.codigoSeguimiento);
-                          await buscarDetalle(s.codigoSeguimiento);
-                        }}
-                      >
-                        Ver
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: 10, color: "#666", fontSize: 12 }}>
-              Tip: tocá “Ver” para cargar el detalle abajo.
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Detalle + acciones */}
-      {data && (
-        <div style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
-          <h2 style={{ marginTop: 0 }}>Detalle</h2>
-
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#666" }}>Código</div>
-              <div style={{ fontWeight: 700 }}>{data.codigoSeguimiento}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#666" }}>Estado</div>
-              <EstadoBadge estado={estado} />
-            </div>
-          </div>
-
-          {data.presupuestoMonto && (
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 700 }}>Presupuesto</div>
-              <div>Monto: ${data.presupuestoMonto}</div>
-              <div>Detalle: {data.presupuestoDetalle}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 14 }}>
+        {/* LISTA */}
+        <TechCard>
+          <SectionTitle title="Solicitudes" subtitle={`Total: ${items.length}`} />
+          {items.length === 0 ? (
+            <div style={{ color: "#2b4b66", fontWeight: 800 }}>No hay solicitudes.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {items.map((it) => {
+                const active = sel?.codigoSeguimiento === it.codigoSeguimiento;
+                return (
+                  <button
+                    key={it.codigoSeguimiento}
+                    onClick={() => seleccionar(it)}
+                    style={{
+                      textAlign: "left",
+                      padding: 12,
+                      borderRadius: 14,
+                      border: active
+                        ? "2px solid rgba(27,100,198,0.55)"
+                        : "1px solid rgba(27,100,198,0.20)",
+                      background: active ? "rgba(46,139,255,0.08)" : "rgba(255,255,255,0.7)",
+                      cursor: "pointer",
+                      boxShadow: "0 10px 18px rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 950, color: "#0b2a4a" }}>{it.codigoSeguimiento}</div>
+                      <Badge>{it.estado}</Badge>
+                    </div>
+                    <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 700, fontSize: 12 }}>
+                      {it.marca} {it.modelo} · {it.nombreCliente}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
+        </TechCard>
 
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px dashed #ccc" }}>
-            <h3 style={{ margin: 0 }}>Acciones Admin</h3>
-            <div style={{ marginTop: 10, color: "#666", fontSize: 12 }}>
-              Se muestran solo las acciones posibles según el estado.
-            </div>
+        {/* DETALLE + ACCIONES */}
+        <TechCard>
+          <SectionTitle title="Detalle y acciones" subtitle="Seleccioná una solicitud para operar." />
 
-            {/* SOLICITADO -> PRESUPUESTADO */}
-            {estado === "SOLICITADO" && (
-              <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700 }}>Cargar presupuesto</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                  <input
-                    value={admPresMonto}
-                    onChange={(e) => setAdmPresMonto(e.target.value)}
-                    placeholder="Monto (ej: 25000)"
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", width: 180 }}
-                  />
-                  <input
-                    value={admPresDetalle}
-                    onChange={(e) => setAdmPresDetalle(e.target.value)}
-                    placeholder="Detalle (ej: módulo + mano de obra)"
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", flex: 1, minWidth: 240 }}
-                  />
-                  <button
-                    disabled={loading}
-                    onClick={() =>
-                      adminRun(() => {
-                        const monto = parseNumberOrThrow(admPresMonto, "Monto inválido");
-                        const detalle = admPresDetalle.trim();
-                        if (!detalle) throw new Error("Detalle requerido");
-                        return adminPresupuestar(codigo.trim(), { monto, detalle });
-                      })
-                    }
-                  >
-                    Presupuestar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ACEPTADO -> Programar retiro */}
-            {estado === "ACEPTADO" && (
-              <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700 }}>Programar retiro</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                  <input
-                    type="datetime-local"
-                    value={admRetiroFechaHora}
-                    onChange={(e) => setAdmRetiroFechaHora(e.target.value)}
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
-                  />
-                  <button
-                    disabled={loading}
-                    onClick={() =>
-                      adminRun(() => {
-                        if (!admRetiroFechaHora) throw new Error("Elegí fecha/hora");
-                        return adminProgramarRetiro(codigo.trim(), { retiroProgramadoPara: admRetiroFechaHora });
-                      })
-                    }
-                  >
-                    Programar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* RETIRO_PROGRAMADO -> RETIRADO */}
-            {estado === "RETIRO_PROGRAMADO" && (
-              <div style={{ marginTop: 12 }}>
-                <button disabled={loading} onClick={() => adminRun(() => adminMarcarRetirado(codigo.trim()))}>
-                  Marcar RETIRADO
-                </button>
-              </div>
-            )}
-
-            {/* RETIRADO -> RECIBIDO_EN_TALLER */}
-            {estado === "RETIRADO" && (
-              <div style={{ marginTop: 12 }}>
-                <button
-                  disabled={loading}
-                  onClick={() => adminRun(() => adminMarcarRecibidoEnTaller(codigo.trim()))}
-                >
-                  Marcar RECIBIDO EN TALLER
-                </button>
-              </div>
-            )}
-
-            {/* RECIBIDO_EN_TALLER -> EN_REPARACION */}
-            {estado === "RECIBIDO_EN_TALLER" && (
-              <div style={{ marginTop: 12 }}>
-                <button disabled={loading} onClick={() => adminRun(() => adminIniciarReparacion(codigo.trim()))}>
-                  Iniciar reparación
-                </button>
-              </div>
-            )}
-
-            {/* EN_REPARACION -> LISTO_PARA_ENTREGA */}
-            {estado === "EN_REPARACION" && (
-              <div style={{ marginTop: 12 }}>
-                <button disabled={loading} onClick={() => adminRun(() => adminMarcarListo(codigo.trim()))}>
-                  Marcar LISTO PARA ENTREGA
-                </button>
-              </div>
-            )}
-
-            {/* PAGO_PENDIENTE_VERIFICACION -> Confirmar desde comprobante */}
-            {estado === "PAGO_PENDIENTE_VERIFICACION" && (
-              <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700 }}>Pago pendiente de verificación</div>
-
-                {adminComprobanteUrlFromEntity(data) && (
-                  <div style={{ marginTop: 8 }}>
-                    Comprobante:{" "}
-                    <a
-                      href={fullFileUrl(adminComprobanteUrlFromEntity(data))}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Ver archivo
-                    </a>
+          {!selFull ? (
+            <div style={{ color: "#2b4b66", fontWeight: 800 }}>No hay selección.</div>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#2b4b66", fontWeight: 800 }}>Código</div>
+                  <div style={{ fontSize: 18, fontWeight: 950, color: "#0b2a4a" }}>
+                    {selFull.codigoSeguimiento}
                   </div>
-                )}
-
-                <button
-                  disabled={loading}
-                  onClick={() => adminRun(() => adminConfirmarPagoDesdeComprobante(codigo.trim()))}
-                  style={{ marginTop: 10 }}
-                >
-                  Confirmar pago (transferencia)
-                </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 12, color: "#2b4b66", fontWeight: 800 }}>Estado</div>
+                  <Badge>{selFull.estado}</Badge>
+                </div>
               </div>
-            )}
 
-            {/* LISTO_PARA_ENTREGA -> Confirmar pago manual */}
-            {estado === "LISTO_PARA_ENTREGA" && (
-              <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700 }}>Confirmar pago (manual)</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                  <select
-                    value={admPagoMetodo}
-                    onChange={(e) => setAdmPagoMetodo(e.target.value)}
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+              <div style={{ marginTop: 10, color: "#2b4b66", fontWeight: 700, lineHeight: 1.6 }}>
+                <div><b>Cliente:</b> {selFull.nombreCliente} · {selFull.telefonoCliente}</div>
+                <div><b>Equipo:</b> {selFull.marca} {selFull.modelo} {selFull.imei ? `(IMEI: ${selFull.imei})` : ""}</div>
+                <div><b>Falla:</b> {selFull.descripcionFalla}</div>
+              </div>
+
+              {/* Acciones rápidas */}
+              <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Button
+                  variant="ghost"
+                  disabled={!canAct || loading}
+                  onClick={() => run((code) => adminMarcarRecibidoEnTaller(code))}
+                >
+                  Marcar recibido en taller
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  disabled={!canAct || loading}
+                  onClick={() => run((code) => adminMarcarRetirado(code))}
+                >
+                  Marcar retirado
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  disabled={!canAct || loading}
+                  onClick={() => run((code) => adminIniciarReparacion(code))}
+                >
+                  Iniciar reparación
+                </Button>
+
+                <Button
+                  variant="success"
+                  disabled={!canAct || loading}
+                  onClick={() => run((code) => adminMarcarListo(code))}
+                >
+                  Marcar listo
+                </Button>
+
+                <Button
+                  variant="primary"
+                  disabled={!canAct || loading}
+                  onClick={() => run((code) => adminMarcarEntregado(code))}
+                >
+                  Marcar entregado
+                </Button>
+              </div>
+
+              {/* Presupuesto */}
+              <TechCard style={{ marginTop: 14, padding: 14 }}>
+                <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Presupuestar</div>
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <Input
+                    value={presMonto}
+                    onChange={(e) => setPresMonto(e.target.value)}
+                    placeholder="Monto (ej: 35000)"
+                  />
+                  <Input
+                    value={presDetalle}
+                    onChange={(e) => setPresDetalle(e.target.value)}
+                    placeholder="Detalle (ej: Cambio módulo)"
+                  />
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <Button
+                    variant="primary"
+                    disabled={!canAct || loading || !presMonto.trim() || !presDetalle.trim()}
+                    onClick={() =>
+                      run((code) =>
+                        adminPresupuestar(code, { monto: Number(presMonto), detalle: presDetalle.trim() })
+                      )
+                    }
                   >
+                    Enviar presupuesto
+                  </Button>
+                </div>
+              </TechCard>
+
+              {/* Programar retiro */}
+              <TechCard style={{ marginTop: 14, padding: 14 }}>
+                <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Programar retiro</div>
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+                  <Input
+                    value={retiroProgramadoPara}
+                    onChange={(e) => setRetiroProgramadoPara(e.target.value)}
+                    placeholder='Fecha/hora ISO (ej: 2026-03-05T18:00)'
+                  />
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <Button
+                    variant="primary"
+                    disabled={!canAct || loading || !retiroProgramadoPara.trim()}
+                    onClick={() =>
+                      run((code) => adminProgramarRetiro(code, { retiroProgramadoPara: retiroProgramadoPara.trim() }))
+                    }
+                  >
+                    Programar retiro
+                  </Button>
+                </div>
+              </TechCard>
+
+              {/* Pago */}
+              <TechCard style={{ marginTop: 14, padding: 14 }}>
+                <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Confirmar pago</div>
+
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <Select value={pagoMetodo} onChange={(e) => setPagoMetodo(e.target.value)}>
                     <option value="EFECTIVO">EFECTIVO</option>
                     <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                  </select>
+                  </Select>
 
-                  <input
-                    value={admPagoMonto}
-                    onChange={(e) => setAdmPagoMonto(e.target.value)}
-                    placeholder="Monto cobrado"
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", width: 160 }}
+                  <Input
+                    value={pagoMonto}
+                    onChange={(e) => setPagoMonto(e.target.value)}
+                    placeholder="Monto (ej: 35000)"
                   />
 
-                  <input
-                    value={admPagoRef}
-                    onChange={(e) => setAdmPagoRef(e.target.value)}
+                  <Input
+                    value={pagoRef}
+                    onChange={(e) => setPagoRef(e.target.value)}
                     placeholder="Referencia (opcional)"
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", flex: 1, minWidth: 200 }}
+                    style={{ gridColumn: "1 / -1" }}
                   />
+                </div>
 
-                  <button
-                    disabled={loading}
+                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <Button
+                    variant="success"
+                    disabled={!canAct || loading || !pagoMonto.trim()}
                     onClick={() =>
-                      adminRun(() => {
-                        const monto = parseNumberOrThrow(admPagoMonto, "Monto inválido");
-                        return adminConfirmarPago(codigo.trim(), {
-                          metodo: admPagoMetodo,
-                          monto,
-                          referencia: admPagoRef.trim() || null,
-                        });
-                      })
+                      run((code) =>
+                        adminConfirmarPago(code, {
+                          metodo: pagoMetodo,
+                          monto: Number(pagoMonto),
+                          referencia: pagoRef.trim() || null,
+                        })
+                      )
                     }
                   >
                     Confirmar pago
-                  </button>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    disabled={!canAct || loading}
+                    onClick={() => run((code) => adminConfirmarPagoDesdeComprobante(code))}
+                  >
+                    Confirmar desde comprobante
+                  </Button>
                 </div>
-              </div>
-            )}
+              </TechCard>
+            </>
+          )}
+        </TechCard>
+      </div>
 
-            {/* PAGADO -> ENTREGADO */}
-            {estado === "PAGADO" && (
-              <div style={{ marginTop: 12 }}>
-                <button disabled={loading} onClick={() => adminRun(() => adminMarcarEntregado(codigo.trim()))}>
-                  Marcar ENTREGADO
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Media cliente */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontWeight: 700 }}>Fotos/Videos enviados</div>
-            {media.length === 0 ? (
-              <div style={{ color: "#666" }}>No hay archivos.</div>
-            ) : (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
-                {media.map((url) => {
-                  const full = fullFileUrl(url);
-                  const lower = url.toLowerCase();
-                  const isVideo = lower.includes(".mp4");
-                  const isPdf = lower.includes(".pdf");
-
-                  return (
-                    <a key={url} href={full} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                      <div style={{ width: 170, border: "1px solid #ddd", borderRadius: 10, overflow: "hidden" }}>
-                        {isVideo ? (
-                          <div style={{ padding: 12 }}>🎥 Ver video</div>
-                        ) : isPdf ? (
-                          <div style={{ padding: 12 }}>📄 Ver PDF</div>
-                        ) : (
-                          <img src={full} alt="" style={{ width: "100%", height: 170, objectFit: "cover" }} />
-                        )}
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div style={{ marginTop: 14, color: "#666", fontSize: 12 }}>
-            Tip: tocá “Ver” o “Ver detalle” para refrescar.
-          </div>
-        </div>
-      )}
+      <style>{`
+        @media (max-width: 900px) {
+          .adminGrid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
