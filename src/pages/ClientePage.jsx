@@ -204,11 +204,11 @@ export default function ClientePage({ mode }) {
   async function onCrearSolicitud() {
     setError("");
 
-    if (!form.nombreCliente.trim()) return setError("Falta nombre");
-    if (!form.telefonoCliente.trim()) return setError("Falta teléfono");
-    if (!form.direccionRetiro.trim()) return setError("Falta dirección de retiro");
-    if (!form.marca.trim()) return setError("Falta marca");
-    if (!form.modelo.trim()) return setError("Falta modelo");
+    if (!form.nombreCliente.trim()) return setError("Falta nombre y apellido");
+    if (!form.telefonoCliente.trim()) return setError("Falta teléfono de contacto");
+    if (!form.direccionRetiro.trim()) return setError("Falta dirección de retiro - barrio");
+    if (!form.marca.trim()) return setError("Falta marca del telefono");
+    if (!form.modelo.trim()) return setError("Falta modelo del telefono");
     if (!form.descripcionFalla.trim()) return setError("Falta descripción de la falla");
 
     setLoading(true);
@@ -326,19 +326,19 @@ export default function ClientePage({ mode }) {
 
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr": "1fr 1fr", gap: 10 }}>
             <input
-              placeholder="Nombre"
+              placeholder="Nombre y Apellido"
               value={form.nombreCliente}
               onChange={(e) => setField("nombreCliente", e.target.value)}
               style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}
             />
             <input
-              placeholder="Teléfono"
+              placeholder="Teléfono de Contacto"
               value={form.telefonoCliente}
               onChange={(e) => setField("telefonoCliente", e.target.value)}
               style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}
             />
             <input
-              placeholder="Dirección retiro"
+              placeholder="Dirección retiro - calle - barrio"
               value={form.direccionRetiro}
               onChange={(e) => setField("direccionRetiro", e.target.value)}
               style={{
@@ -349,13 +349,13 @@ export default function ClientePage({ mode }) {
               }}
             />
             <input
-              placeholder="Marca"
+              placeholder="Marca del telefono"
               value={form.marca}
               onChange={(e) => setField("marca", e.target.value)}
               style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}
             />
             <input
-              placeholder="Modelo"
+              placeholder="Modelo del telefono"
               value={form.modelo}
               onChange={(e) => setField("modelo", e.target.value)}
               style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}

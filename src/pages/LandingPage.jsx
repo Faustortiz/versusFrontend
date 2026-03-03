@@ -119,7 +119,7 @@ export default function LandingPage() {
             </div>
 
             <div style={{ marginTop: 10, fontSize: 16, fontWeight: 800, color: "#2b4b66" }}>
-              Retiro y entrega en el día · Seguimiento por código
+              Retiro y reparación a domicilio · Seguimiento por código
             </div>
 
             <div
@@ -161,7 +161,7 @@ export default function LandingPage() {
         <TechCard>
           <SectionTitle
             title="¿Cómo funciona?"
-            subtitle="Simple y rápido: solicitás, retiramos, reparás y seguís el estado con tu código."
+            subtitle="Simple y rápido: solicitás, retiramos, reparamos y seguís el estado con tu código."
           />
           <div
             style={{
