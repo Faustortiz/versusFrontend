@@ -224,14 +224,14 @@ export default function AdminPage() {
           <div style={{ minWidth: 260 }}>
             <Select value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="">Todos los estados</option>
-              <option value="CREADA">CREADA</option>
-              <option value="RECIBIDO_EN_TALLER">RECIBIDO_EN_TALLER</option>
+              <option value="SOLICITADO">SOLICITADO</option>
+              <option value="RECIBIDO_EN_TALLER">RECIBIDO EN TALLER</option>
               <option value="PRESUPUESTADO">PRESUPUESTADO</option>
-              <option value="RETIRO_PROGRAMADO">RETIRO_PROGRAMADO</option>
+              <option value="RETIRO_PROGRAMADO">RETIRO PROGRAMADO</option>
               <option value="RETIRADO">RETIRADO</option>
-              <option value="EN_REPARACION">EN_REPARACION</option>
-              <option value="LISTO_PARA_ENTREGA">LISTO_PARA_ENTREGA</option>
-              <option value="PAGO_PENDIENTE_VERIFICACION">PAGO_PENDIENTE_VERIFICACION</option>
+              <option value="EN_REPARACION">EN REPARACION</option>
+              <option value="LISTO_PARA_ENTREGA">LISTO PARA ENTREGA</option>
+              <option value="PAGO_PENDIENTE_VERIFICACION">PAGO PENDIENTE VERIFICACION</option>
               <option value="ENTREGADO">ENTREGADO</option>
               <option value="CANCELADO">CANCELADO</option>
             </Select>
@@ -311,6 +311,35 @@ export default function AdminPage() {
               </div>
 
               {/* Acciones rápidas */}
+                            {/* Presupuesto */}
+              <TechCard style={{ marginTop: 14, padding: 14 }}>
+                <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Presupuestar</div>
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <Input
+                    value={presMonto}
+                    onChange={(e) => setPresMonto(e.target.value)}
+                    placeholder="Monto (ej: 35000)"
+                  />
+                  <Input
+                    value={presDetalle}
+                    onChange={(e) => setPresDetalle(e.target.value)}
+                    placeholder="Detalle (ej: Cambio módulo)"
+                  />
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <Button
+                    variant="primary"
+                    disabled={!canAct || loading || !presMonto.trim() || !presDetalle.trim()}
+                    onClick={() =>
+                      run((code) =>
+                        adminPresupuestar(code, { monto: Number(presMonto), detalle: presDetalle.trim() })
+                      )
+                    }
+                  >
+                    Enviar presupuesto
+                  </Button>
+                </div>
+              </TechCard>
               <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <Button
                   variant="ghost"
