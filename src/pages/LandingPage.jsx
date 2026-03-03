@@ -101,6 +101,7 @@ function SectionTitle({ title, subtitle }) {
 }
 
 export default function LandingPage() {
+    console.log("LANDING RENDER")
   return (
     <div>
       {/* HERO: centrado en pantalla */}

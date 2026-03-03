@@ -7,18 +7,21 @@ import AppShell from "./ui/AppShell";
 function Layout() {
   return (
     <AppShell>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/crear" element={<ClientePage mode="crear" />} />
-        <Route path="/seguimiento" element={<ClientePage mode="seguimiento" />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div style={{ width: "100%" }}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/crear" element={<ClientePage mode="crear" />} />
+          <Route path="/seguimiento" element={<ClientePage mode="seguimiento" />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
     </AppShell>
   );
 }
 
 export default function App() {
+  console.log("APP RENDER")
   return (
     <BrowserRouter>
       <Layout />
