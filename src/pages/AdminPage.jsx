@@ -157,6 +157,10 @@ export default function AdminPage() {
   const selectedCode = selFull?.codigoSeguimiento;
   const canAct = useMemo(() => Boolean(selectedCode), [selectedCode]);
 
+  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+
   async function cargar() {
     setError("");
     setLoading(true);
@@ -274,9 +278,10 @@ export default function AdminPage() {
 
         <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
           <Input
+            type="datetime-local"
+            min={minDateTime}
             value={retiroProgramadoPara}
             onChange={(e) => setRetiroProgramadoPara(e.target.value)}
-            placeholder='Fecha/hora (ej: 2026-03-05T18:00)'
           />
         </div>
 
@@ -468,13 +473,10 @@ export default function AdminPage() {
         return renderPresupuestar();
 
       case "PRESUPUESTADO":
-        // en tu flujo no existe "ACEPTADO", por eso agregamos programar retiro acá
-        return (
-          <>
-            {renderProgramarRetiro()}
-            {renderInfo("Esperando respuesta del cliente (aceptar/rechazar). Si ya aceptó por WhatsApp/llamada, programá el retiro.")}
-          </>
-        );
+        return renderInfo("Presupuesto enviado. Esperando que el cliente acepte o rechace.");
+
+      case "ACEPTADO":
+        return renderProgramarRetiro();
 
       case "RETIRO_PROGRAMADO":
         return renderMarcarRetirado();
@@ -497,8 +499,8 @@ export default function AdminPage() {
       case "ENTREGADO":
         return renderInfo("✅ Entregado. No hay acciones pendientes.");
 
-      case "CANCELADO":
-        return renderInfo("⛔ Cancelado. No hay acciones disponibles.");
+      case "RECHAZADO":
+        return renderInfo("⛔ El cliente rechazó el presupuesto. No hay acciones disponibles.");
 
       default:
         return renderInfo(`Estado actual: ${selFull.estado}. No hay acciones configuradas para este estado.`);
@@ -521,6 +523,7 @@ export default function AdminPage() {
             <Select value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="">Todos los estados</option>
               <option value="SOLICITADO">SOLICITADO</option>
+              <option value="ACEPTADO">ACEPTADO</option>
               <option value="RECIBIDO_EN_TALLER">RECIBIDO EN TALLER</option>
               <option value="PRESUPUESTADO">PRESUPUESTADO</option>
               <option value="RETIRO_PROGRAMADO">RETIRO PROGRAMADO</option>
@@ -529,7 +532,7 @@ export default function AdminPage() {
               <option value="LISTO_PARA_ENTREGA">LISTO PARA ENTREGA</option>
               <option value="PAGO_PENDIENTE_VERIFICACION">PAGO PENDIENTE VERIFICACION</option>
               <option value="ENTREGADO">ENTREGADO</option>
-              <option value="CANCELADO">CANCELADO</option>
+              <option value="RECHAZADO">RECHAZADO</option>
             </Select>
           </div>
 
