@@ -1,0 +1,23 @@
+.versus-logo {
+  font-size: 42px;
+  font-weight: 900;
+  color: #00e5ff;
+  letter-spacing: 6px;
+  text-align: center;
+  animation: glowVersus 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes glowVersus {
+  from {
+    text-shadow:
+      0 0 10px rgba(0, 229, 255, 0.6),
+      0 0 20px rgba(0, 229, 255, 0.4);
+  }
+
+  to {
+    text-shadow:
+      0 0 20px rgba(0, 229, 255, 0.9),
+      0 0 40px rgba(0, 229, 255, 0.7),
+      0 0 60px rgba(0, 229, 255, 0.4);
+  }
+}
