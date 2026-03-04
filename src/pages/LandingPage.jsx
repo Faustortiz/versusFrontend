@@ -106,10 +106,13 @@ export default function LandingPage() {
         <div>
             {/* HERO: centrado en pantalla */}
             <div
+                className="hero-wrap"
                 style={{
-                    minHeight: "calc(100vh - 140px)", // ajusta si querés: 120/160
+                    minHeight: "calc(100vh - 140px)",
                     display: "grid",
                     placeItems: "center",
+                    paddingTop: 8,
+                    paddingBottom: 8,
                 }}
             >
                 <TechCard
@@ -327,12 +330,37 @@ export default function LandingPage() {
 
             {/* Responsive extra: si querés FULL responsive real, lo pasamos a CSS luego */}
             <style>{`
-                @media (max-width: 720px) {
-                .hero-steps {
-                    grid-template-columns: 1fr !important;
-                    }
-             }
-`       }</style>
+  @media (max-width: 720px) {
+    .hero-wrap {
+      min-height: auto !important;
+      place-items: start center !important; /* 👈 sube el bloque */
+      padding-top: 10px !important;
+      padding-bottom: 10px !important;
+    }
+
+    .hero-card {
+      padding: 18px !important;     /* 👈 achica padding del hero */
+      max-width: 520px !important;
+    }
+
+    .hero-title {
+      font-size: 34px !important;   /* 👈 título más chico */
+    }
+
+    .hero-subtitle {
+      font-size: 16px !important;   /* 👈 subtítulo más chico */
+    }
+
+    .hero-actions {
+      margin-top: 14px !important;  /* 👈 botones más cerca */
+    }
+
+    .hero-steps {
+      grid-template-columns: 1fr !important; /* ya lo tenías */
+      gap: 10px !important;
+    }
+  }
+`}</style>
         </div>
     );
 }
