@@ -154,7 +154,8 @@ export default function LandingPage() {
                 marginRight: "auto",
               }}
             >
-              <div
+              <div 
+              className="hero-step"
                 style={{
                   padding: 14,
                   borderRadius: 16,
@@ -370,10 +371,24 @@ export default function LandingPage() {
           }
 
           /* 👇 Botones full width en mobile */
-          .hero-btn {
-            width: 100% !important;
-            min-width: 0 !important;
-          }
+        /* 👇 Compactar pasos en mobile */
+        .hero-steps {
+        margin-top: 14px !important; /* antes 22 */
+        }
+
+        .hero-step {
+        padding: 10px !important;     /* antes 14 */
+        border-radius: 14px !important;
+        }
+
+        .hero-step > div:first-child {
+        font-size: 18px !important;   /* emoji más chico */
+        margin-bottom: 4px !important;
+        }
+
+        .hero-step div {
+        line-height: 1.25 !important; /* más apretado */
+            }
         }
       `}</style>
     </div>
