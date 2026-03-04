@@ -130,6 +130,7 @@ export default function LandingPage() {
                         </div>
 
                         <div
+                            className="hero-steps"
                             style={{
                                 marginTop: 22,
                                 display: "grid",
@@ -326,12 +327,12 @@ export default function LandingPage() {
 
             {/* Responsive extra: si querés FULL responsive real, lo pasamos a CSS luego */}
             <style>{`
-        @media (max-width: 720px) {
-          .grid3 {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+                @media (max-width: 720px) {
+                .hero-steps {
+                    grid-template-columns: 1fr !important;
+                    }
+             }
+`       }</style>
         </div>
     );
 }
