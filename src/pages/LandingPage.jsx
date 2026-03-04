@@ -155,7 +155,7 @@ export default function LandingPage() {
               }}
             >
               <div 
-              className="hero-step"
+                className="hero-step"
                 style={{
                   padding: 14,
                   borderRadius: 16,
@@ -173,6 +173,7 @@ export default function LandingPage() {
               </div>
 
               <div
+              className="hero-step"
                 style={{
                   padding: 14,
                   borderRadius: 16,
@@ -190,6 +191,7 @@ export default function LandingPage() {
               </div>
 
               <div
+              className="hero-step"
                 style={{
                   padding: 14,
                   borderRadius: 16,
