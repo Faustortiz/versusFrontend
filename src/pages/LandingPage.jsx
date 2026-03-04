@@ -139,7 +139,7 @@ export default function LandingPage() {
               className="hero-subtitle"
               style={{ marginTop: 10, fontSize: 20, fontWeight: 800, color: "#2b4b66" }}
             >
-              Retiramos desde domicilio, reparamos y entregamos a domicilio
+              Retiramos, reparamos y entregamos a domicilio
             </div>
 
             <div
@@ -166,10 +166,10 @@ export default function LandingPage() {
                 }}
               >
                 <div style={{ fontSize: 22, marginBottom: 6 }}>🚚</div>
-                Retiramos
-                <div style={{ fontSize: 12, fontWeight: 800, marginTop: 6, color: "#2b4b66" }}>
+                Retiramos de tu domicilio
+                {/*<div style={{ fontSize: 12, fontWeight: 800, marginTop: 6, color: "#2b4b66" }}>
                   Coordinamos el retiro
-                </div>
+                </div>*/}
               </div>
 
               <div
@@ -184,9 +184,9 @@ export default function LandingPage() {
               >
                 <div style={{ fontSize: 22, marginBottom: 6 }}>🔧</div>
                 Reparamos
-                <div style={{ fontSize: 12, fontWeight: 800, marginTop: 6, color: "#2b4b66" }}>
+                {/*<div style={{ fontSize: 12, fontWeight: 800, marginTop: 6, color: "#2b4b66" }}>
                   Diagnóstico y solución
-                </div>
+                </div>*/}
               </div>
 
               <div
@@ -201,9 +201,9 @@ export default function LandingPage() {
               >
                 <div style={{ fontSize: 22, marginBottom: 6 }}>🏠</div>
                 Entregamos
-                <div style={{ fontSize: 12, fontWeight: 800, marginTop: 6, color: "#2b4b66" }}>
+                {/*<div style={{ fontSize: 12, fontWeight: 800, marginTop: 6, color: "#2b4b66" }}>
                   Te lo devolvemos listo
-                </div>
+                </div>*/}
               </div>
             </div>
 
