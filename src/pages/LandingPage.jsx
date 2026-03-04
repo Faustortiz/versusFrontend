@@ -341,58 +341,56 @@ export default function LandingPage() {
         Versus Reparaciones · Seguimiento simple · Atención rápida
       </div>
 
-      <style>{`
-        @media (max-width: 720px) {
-          .hero-wrap {
-            min-height: auto !important;
-            place-items: start center !important;
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-          }
+     <style>{`
+    @media (max-width: 900px) {
+    .hero-wrap {
+      min-height: auto !important;
+      place-items: start center !important;
+      padding-top: 10px !important;
+      padding-bottom: 10px !important;
+    }
 
-          .hero-card {
-            padding: 18px !important;
-            max-width: 520px !important;
-          }
+    .hero-card {
+      padding: 18px !important;
+      max-width: 520px !important;
+    }
 
-          .hero-title {
-            font-size: 34px !important;
-          }
+    .hero-title {
+      font-size: 34px !important;
+    }
 
-          .hero-subtitle {
-            font-size: 16px !important;
-          }
+    .hero-subtitle {
+      font-size: 16px !important;
+      margin-top: 6px !important;
+    }
 
-          .hero-actions {
-            margin-top: 14px !important;
-          }
+    .hero-steps {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+      margin-top: 14px !important;
+    }
 
-          .hero-steps {
-            grid-template-columns: 1fr !important;
-            gap: 10px !important;
-          }
+    .hero-step {
+      padding: 10px !important;
+      border-radius: 14px !important;
+    }
 
-          /* 👇 Botones full width en mobile */
-        /* 👇 Compactar pasos en mobile */
-        .hero-steps {
-        margin-top: 14px !important; /* antes 22 */
-        }
+    .hero-step > div:first-child {
+      font-size: 18px !important;
+      margin-bottom: 4px !important;
+    }
 
-        .hero-step {
-        padding: 10px !important;     /* antes 14 */
-        border-radius: 14px !important;
-        }
+    .hero-actions {
+      margin-top: 14px !important;
+      flex-direction: column !important; /* 👈 botones uno abajo del otro */
+      align-items: stretch !important;
+    }
 
-        .hero-step > div:first-child {
-        font-size: 18px !important;   /* emoji más chico */
-        margin-bottom: 4px !important;
-        }
-
-        .hero-step div {
-        line-height: 1.25 !important; /* más apretado */
-            }
-        }
-      `}</style>
+    .hero-btn {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+  }`}</style>
     </div>
   );
 }
