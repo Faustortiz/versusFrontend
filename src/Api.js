@@ -42,6 +42,14 @@ export async function getSolicitud(codigo) {
   if (!res.ok) throw new Error("Error consultando solicitud");
   return res.json();
 }
+export async function adminGetSolicitud(codigo) {
+  const res = await fetch(`${API_BASE}/admin/solicitudes/${encodeURIComponent(codigo)}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("No se pudo cargar detalle admin");
+  return await res.json();
+}
 
 export async function aceptarPresupuesto(codigo) {
   const res = await fetch(`${API_BASE}/public/solicitudes/${codigo}/presupuesto/aceptar`, {

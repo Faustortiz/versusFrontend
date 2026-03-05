@@ -1,6 +1,9 @@
 // src/pages/ClientePage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
     getSolicitud,
     getMedia,
@@ -16,6 +19,28 @@ const API_HOST = import.meta.env.VITE_API_BASE_URL || "http://localhost:9090";
 const LS_LAST_CODE_KEY = "versus_last_tracking_code";
 
 const BUDGET_EXPIRES_HOURS = 48;
+
+const markerIcon = new L.Icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+});
+
+function LocationSelector({ setLat, setLng }) {
+    const [position, setPosition] = useState(null);
+
+    useMapEvents({
+        click(e) {
+            setPosition(e.latlng);
+            setLat(e.latlng.lat);
+            setLng(e.latlng.lng);
+        },
+    });
+
+    if (!position) return null;
+
+    return <Marker position={position} icon={markerIcon} />;
+}
 
 function formatAR(iso) {
     if (!iso) return "-";
@@ -97,8 +122,6 @@ function EstadoBadge({ estado }) {
 }
 
 export default function ClientePage({ mode }) {
-    console.log("MODE RECIBIDO:", mode);
-
     const location = useLocation();
 
     // --- Cliente: seguimiento ---
@@ -124,17 +147,27 @@ export default function ClientePage({ mode }) {
         direccionRetiro: "",
         marca: "",
         modelo: "",
-        imei: "",
         descripcionFalla: "",
     });
     const [mediaFiles, setMediaFiles] = useState([]); // 0..3
 
-    const PUBLIC_BASE = import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin;
+    // --- Ubicación retiro ---
+    const [lat, setLat] = useState(null);
+    const [lng, setLng] = useState(null);
+    // eslint-disable-next-line no-unused-vars
+    const [locStatus, setLocStatus] = useState(""); // feedback simple
 
+    const PUBLIC_BASE = import.meta.env.VITE_PUBLIC_BASE_URL || window.location.origin;
     const isMobile = window.matchMedia("(max-width: 640px)").matches;
 
     const showCrear = !mode || mode === "crear";
     const showSeg = !mode || mode === "seguimiento";
+
+    // Para expiración de presupuesto: usar presupuestadoAt si existe
+    const base = data?.presupuestadoAt || null;
+    const expiraIso = base ? addHoursISO(base, BUDGET_EXPIRES_HOURS) : null;
+
+    const [showMap, setShowMap] = useState(false);
 
     function setField(name, value) {
         setForm((prev) => ({ ...prev, [name]: value }));
@@ -179,6 +212,37 @@ export default function ClientePage({ mode }) {
         setMedia([]);
         setError("");
     }
+
+    // 📍 GPS: ubicación para retiro
+    function obtenerUbicacion() {
+        setLocStatus("");
+        if (!navigator.geolocation) {
+            setLocStatus("Tu navegador no soporta geolocalización");
+            return;
+        }
+
+        setLocStatus("Obteniendo ubicación...");
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setLat(pos.coords.latitude);
+                setLng(pos.coords.longitude);
+                setLocStatus("Ubicación guardada ✅");
+                setTimeout(() => setLocStatus(""), 2000);
+            },
+            (err) => {
+                console.log(err);
+                setLocStatus("No se pudo obtener ubicación. Activá GPS / permisos.");
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+    {/*
+    function borrarUbicacion() {
+        setLat(null);
+        setLng(null);
+        setLocStatus("Ubicación quitada");
+        setTimeout(() => setLocStatus(""), 1500);
+    }*/}
 
     async function buscar(cod = null) {
         const c = (cod ?? codigo).trim();
@@ -231,22 +295,29 @@ export default function ClientePage({ mode }) {
         if (!form.nombreCliente.trim()) return setError("Falta nombre y apellido");
         if (!form.telefonoCliente.trim()) return setError("Falta teléfono de contacto");
         if (!form.direccionRetiro.trim()) return setError("Falta dirección de retiro - barrio");
-        if (!form.marca.trim()) return setError("Falta marca del telefono");
-        if (!form.modelo.trim()) return setError("Falta modelo del telefono");
+        if (!form.marca.trim()) return setError("Falta marca del teléfono");
+        if (!form.modelo.trim()) return setError("Falta modelo del teléfono");
         if (!form.descripcionFalla.trim()) return setError("Falta descripción de la falla");
 
         setLoading(true);
         try {
-            const creada = await crearSolicitud({
+            const payload = {
                 nombreCliente: form.nombreCliente.trim(),
                 telefonoCliente: form.telefonoCliente.trim(),
                 direccionRetiro: form.direccionRetiro.trim(),
                 marca: form.marca.trim(),
                 modelo: form.modelo.trim(),
-                imei: form.imei.trim() || null,
                 descripcionFalla: form.descripcionFalla.trim(),
-            });
-            setData(creada); // 👈 para mostrar código + fecha sin esperar el buscar()
+                // ✅ ubicación opcional
+                latitud: typeof lat === "number" ? lat : null,
+                longitud: typeof lng === "number" ? lng : null,
+            };
+
+            const creada = await crearSolicitud(payload);
+
+            // 👇 para mostrar código + fecha sin esperar buscar()
+            setData(creada);
+
             const code = creada?.codigoSeguimiento;
 
             if (code) {
@@ -298,11 +369,7 @@ export default function ClientePage({ mode }) {
         setError("");
         setLoading(true);
         try {
-            const s = await subirComprobante(
-                codigo.trim(),
-                comprobanteFile,
-                referenciaComprobante.trim() || null
-            );
+            const s = await subirComprobante(codigo.trim(), comprobanteFile, referenciaComprobante.trim() || null);
             setData(s);
             setComprobanteFile(null);
             setReferenciaComprobante("");
@@ -333,7 +400,11 @@ export default function ClientePage({ mode }) {
             title={showCrear && !showSeg ? "Crear solicitud" : "Seguimiento"}
             subtitle="Versus Reparaciones · Retiro y entrega en el día"
         >
-            {error && <div style={{ margin: "0 auto 12px", maxWidth: 980, color: "crimson", fontWeight: 800 }}>{error}</div>}
+            {error && (
+                <div style={{ margin: "0 auto 12px", maxWidth: 980, color: "crimson", fontWeight: 800 }}>
+                    {error}
+                </div>
+            )}
 
             {/* Top Nav interna (volver a landing) */}
             <div style={{ maxWidth: 980, margin: "0 auto 12px", display: "flex", justifyContent: "space-between" }}>
@@ -372,24 +443,98 @@ export default function ClientePage({ mode }) {
                                 gridColumn: "1 / -1",
                             }}
                         />
+                        <div style={{ gridColumn: "1 / -1", marginTop: 6, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowMap((v) => !v)}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 14,
+                                    border: "1px solid rgba(27,100,198,0.35)",
+                                    background: "rgba(255,255,255,0.85)",
+                                    fontWeight: 900,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                🗺️ {showMap ? "Ocultar mapa" : "Elegir punto en mapa"}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={obtenerUbicacion}
+                                disabled={loading}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 14,
+                                    border: "1px solid rgba(27,100,198,0.35)",
+                                    background: "rgba(255,255,255,0.85)",
+                                    fontWeight: 900,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                📍 Usar mi ubicación
+                            </button>
+                        </div>
+                        {/* 🗺 Selección de ubicación en mapa */}
+                        {showMap && (
+                            <div style={{ gridColumn: "1 / -1", marginTop: 10 }}>
+                                <div style={{ fontWeight: 900, color: "#0b2a4a", marginBottom: 6 }}>
+                                    Ubicación exacta del retiro
+                                </div>
+
+                                <div
+                                    style={{
+                                        height: 250,
+                                        borderRadius: 12,
+                                        overflow: "hidden",
+                                        border: "1px solid rgba(27,100,198,0.25)",
+                                    }}
+                                >
+                                    <MapContainer
+                                        center={[-26.820947, -65.095322]}
+                                        zoom={13}
+                                        style={{ height: "100%", width: "100%" }}
+                                    >
+                                        <TileLayer
+                                            attribution="© OpenStreetMap"
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        />
+
+                                        <LocationSelector setLat={setLat} setLng={setLng} />
+
+                                        {(typeof lat === "number" && typeof lng === "number") && (
+                                            <Marker position={[lat, lng]} icon={markerIcon} />
+                                        )}
+                                    </MapContainer>
+                                </div>
+
+                                <div style={{ marginTop: 6, fontSize: 12, color: "#2b4b66", fontWeight: 800 }}>
+                                    Tocá el mapa para marcar el punto exacto de retiro.
+                                </div>
+                            </div>)}
+                        {(typeof lat === "number" && typeof lng === "number") && (
+                            <div style={{ gridColumn: "1 / -1", marginTop: 8, color: "#2b4b66", fontWeight: 800 }}>
+                                Punto seleccionado: <b>{lat.toFixed(6)}, {lng.toFixed(6)}</b>
+                            </div>
+                        )}
                         <input
-                            placeholder="Marca del telefono"
+                            placeholder="Marca del teléfono"
                             value={form.marca}
                             onChange={(e) => setField("marca", e.target.value)}
                             style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}
                         />
                         <input
-                            placeholder="Modelo del telefono"
+                            placeholder="Modelo del teléfono"
                             value={form.modelo}
                             onChange={(e) => setField("modelo", e.target.value)}
                             style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}
                         />
-                        <input
+                        {/*<input
                             placeholder="IMEI (opcional)"
                             value={form.imei}
                             onChange={(e) => setField("imei", e.target.value)}
                             style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(27,100,198,0.25)" }}
-                        />
+                        />*/}
                         <textarea
                             placeholder="Descripción de la falla"
                             value={form.descripcionFalla}
@@ -403,6 +548,62 @@ export default function ClientePage({ mode }) {
                             }}
                         />
                     </div>
+
+                    {/* ✅ Ubicación (punto de retiro) */}
+                    {/*<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed rgba(27,100,198,0.25)" }}>
+                        <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Ubicación del retiro (opcional)</div>
+                        <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 800, fontSize: 12 }}>
+                            Si tu zona no tiene calle/número, podés enviarnos tu ubicación exacta.
+                        </div>
+
+                        <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button
+                                type="button"
+                                onClick={obtenerUbicacion}
+                                disabled={loading}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 14,
+                                    border: "1px solid rgba(27,100,198,0.35)",
+                                    background: "rgba(255,255,255,0.85)",
+                                    fontWeight: 900,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                📍 Usar mi ubicación
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={borrarUbicacion}
+                                disabled={loading || (lat == null && lng == null)}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 14,
+                                    border: "1px solid rgba(220, 38, 38, 0.35)",
+                                    background: "rgba(255,255,255,0.85)",
+                                    fontWeight: 900,
+                                    cursor: "pointer",
+                                    color: "#b91c1c",
+                                }}
+                            >
+                                ❌ Quitar ubicación
+                            </button>
+                        </div>
+
+                        {locStatus ? (
+                            <div style={{ marginTop: 8, color: "#2b4b66", fontWeight: 800 }}>{locStatus}</div>
+                        ) : null}
+
+                        {(typeof lat === "number" && typeof lng === "number") && (
+                            <div style={{ marginTop: 8, color: "#2b4b66", fontWeight: 800 }}>
+                                Guardado: <b>{lat.toFixed(6)}, {lng.toFixed(6)}</b>{" "}
+                                <span style={{ fontSize: 12, opacity: 0.8 }}>
+                                    (se enviará con la solicitud)
+                                </span>
+                            </div>
+                        )}
+                    </div>*/}
 
                     <div style={{ marginTop: 12 }}>
                         <div style={{ fontWeight: 900, color: "#0b2a4a" }}>Fotos/Video (opcional, máx 3)</div>
@@ -462,7 +663,10 @@ export default function ClientePage({ mode }) {
                                 <button onClick={() => compartirWhatsapp(data.codigoSeguimiento)} disabled={loading}>
                                     WhatsApp
                                 </button>
-                                <Link to={`/seguimiento?codigo=${encodeURIComponent(data.codigoSeguimiento)}`} style={{ textDecoration: "none" }}>
+                                <Link
+                                    to={`/seguimiento?codigo=${encodeURIComponent(data.codigoSeguimiento)}`}
+                                    style={{ textDecoration: "none" }}
+                                >
                                     <button>Ir a seguimiento →</button>
                                 </Link>
                             </div>
@@ -472,12 +676,18 @@ export default function ClientePage({ mode }) {
                             </div>
                         </div>
                     )}
-                    <div style={{ marginTop: 8, color: "#2b4b66", fontWeight: 800 }}>
-                        Creada: <b>{formatAR(data.fechaCreacion)}</b>
-                    </div>
-                    {data.fechaCreacion && (
-                        <div style={{ marginTop: 6, color: "#0b2a4a", fontWeight: 950 }}>
-                            Presupuesto: expira el <b>{formatAR(addHoursISO(data.fechaCreacion, BUDGET_EXPIRES_HOURS))}</b>
+
+                    {/* ✅ Fecha de creación (solo mostrar esto al crear) */}
+                    {data?.fechaCreacion && (
+                        <div style={{ marginTop: 8, color: "#2b4b66", fontWeight: 800 }}>
+                            Creada: <b>{formatAR(data.fechaCreacion)}</b>
+                        </div>
+                    )}
+
+                    {/* ✅ Presupuesto expira SOLO cuando está PRESUPUESTADO */}
+                    {data?.estado === "PRESUPUESTADO" && expiraIso && (
+                        <div style={{ marginTop: 8, color: "#2b4b66", fontWeight: 800 }}>
+                            Presupuesto expira el <b>{formatAR(expiraIso)}</b>
                         </div>
                     )}
                 </TechCard>
@@ -541,19 +751,26 @@ export default function ClientePage({ mode }) {
                                         <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Presupuesto</div>
                                         <div>Monto: ${data.presupuestoMonto}</div>
                                         <div>Detalle: {data.presupuestoDetalle}</div>
-                                        {data.estado === "PRESUPUESTADO" && data.fechaCreacion && (
-                                            <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(255,255,255,0.65)", border: "1px solid rgba(27,100,198,0.18)" }}>
-                                                <div style={{ fontWeight: 950, color: "#0b2a4a" }}>
-                                                    ⏳ Este presupuesto vence en 48hs
-                                                </div>
+
+                                        {data.estado === "PRESUPUESTADO" && data.presupuestadoAt && (
+                                            <div
+                                                style={{
+                                                    marginTop: 10,
+                                                    padding: 10,
+                                                    borderRadius: 12,
+                                                    background: "rgba(255,255,255,0.65)",
+                                                    border: "1px solid rgba(27,100,198,0.18)",
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: 950, color: "#0b2a4a" }}>⏳ Este presupuesto vence en 48hs</div>
                                                 <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 800 }}>
-                                                    Vence: <b>{formatAR(addHoursISO(data.fechaCreacion, BUDGET_EXPIRES_HOURS))}</b>
+                                                    Vence: <b>{formatAR(addHoursISO(data.presupuestadoAt, BUDGET_EXPIRES_HOURS))}</b>
                                                 </div>
                                                 <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 800 }}>
                                                     Tiempo restante:{" "}
                                                     <b>
                                                         {(() => {
-                                                            const exp = addHoursISO(data.fechaCreacion, BUDGET_EXPIRES_HOURS);
+                                                            const exp = addHoursISO(data.presupuestadoAt, BUDGET_EXPIRES_HOURS);
                                                             if (!exp) return "-";
                                                             return msToHuman(new Date(exp).getTime() - Date.now());
                                                         })()}
@@ -605,9 +822,7 @@ export default function ClientePage({ mode }) {
                                             <div style={{ marginTop: 10 }}>
                                                 {!data.metodoPago && (
                                                     <>
-                                                        <div style={{ color: "#2b4b66", fontWeight: 800 }}>
-                                                            Elegí cómo vas a pagar para continuar:
-                                                        </div>
+                                                        <div style={{ color: "#2b4b66", fontWeight: 800 }}>Elegí cómo vas a pagar para continuar:</div>
 
                                                         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                                                             <button disabled={loading} onClick={() => onElegirMetodoPago("EFECTIVO")}>
@@ -701,7 +916,15 @@ export default function ClientePage({ mode }) {
 
                                                 return (
                                                     <a key={url} href={full} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                                                        <div style={{ width: 170, border: "1px solid rgba(27,100,198,0.20)", borderRadius: 14, overflow: "hidden", background: "white" }}>
+                                                        <div
+                                                            style={{
+                                                                width: 170,
+                                                                border: "1px solid rgba(27,100,198,0.20)",
+                                                                borderRadius: 14,
+                                                                overflow: "hidden",
+                                                                background: "white",
+                                                            }}
+                                                        >
                                                             {isVideo ? (
                                                                 <div style={{ padding: 12, fontWeight: 900 }}>🎥 Ver video</div>
                                                             ) : isPdf ? (

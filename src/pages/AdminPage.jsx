@@ -1,5 +1,5 @@
 // src/pages/AdminPage.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, forwardRef } from "react";
 import {
   adminListarSolicitudes,
   adminPresupuestar,
@@ -11,12 +11,49 @@ import {
   adminMarcarEntregado,
   adminMarcarRecibidoEnTaller,
   adminConfirmarPagoDesdeComprobante,
-  getSolicitud,
+  adminGetSolicitud,
+  getMedia,
 } from "../Api";
 
-function TechCard({ children, style }) {
+function formatAR(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(d);
+}
+function onlyDigits(s) {
+  return (s || "").toString().replace(/\D/g, "");
+}
+
+// Normaliza teléfono AR para wa.me (simple y práctico)
+function normalizePhoneAR(raw) {
+  let d = onlyDigits(raw);
+
+  // si viene con 0 al inicio, lo sacamos
+  if (d.startsWith("0")) d = d.slice(1);
+
+  // si no tiene 54, se lo agregamos
+  if (!d.startsWith("54")) d = "54" + d;
+
+  return d;
+}
+
+function whatsappLinkAR(rawPhone, texto) {
+  const phone = normalizePhoneAR(rawPhone);
+  const msg = texto ? `?text=${encodeURIComponent(texto)}` : "";
+  return `https://wa.me/${phone}${msg}`;
+}
+
+const API_HOST = import.meta.env.VITE_API_BASE_URL || "http://localhost:9090";
+
+function fullFileUrl(relativeUrl) {
+  if (!relativeUrl) return null;
+  return `${API_HOST}${relativeUrl}`;
+}
+const TechCard = forwardRef(function TechCard({ children, style }, ref) {
   return (
     <div
+      ref={ref}
       style={{
         borderRadius: 18,
         border: "1px solid rgba(20, 80, 160, 0.18)",
@@ -30,7 +67,7 @@ function TechCard({ children, style }) {
       {children}
     </div>
   );
-}
+});
 
 function SectionTitle({ title, subtitle }) {
   return (
@@ -161,6 +198,10 @@ export default function AdminPage() {
     .toISOString()
     .slice(0, 16);
 
+  const detailRef = useRef(null);
+
+  const [selMedia, setSelMedia] = useState([]);
+
   async function cargar() {
     setError("");
     setLoading(true);
@@ -170,7 +211,7 @@ export default function AdminPage() {
 
       // si ya había seleccionado, refrescamos
       if (sel?.codigoSeguimiento) {
-        const fresh = await getSolicitud(sel.codigoSeguimiento);
+        const fresh = await adminGetSolicitud(sel.codigoSeguimiento);
         setSelFull(fresh);
       }
     } catch (e) {
@@ -196,8 +237,21 @@ export default function AdminPage() {
     setError("");
     setLoading(true);
     try {
-      const full = await getSolicitud(item.codigoSeguimiento);
+      const full = await adminGetSolicitud(item.codigoSeguimiento);
       setSelFull(full);
+
+      // 👇 SOLO EN MOBILE SCROLL AL DETALLE
+      if (window.innerWidth <= 640) {
+        setTimeout(() => {
+          detailRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 120);
+      }
+
+      const m = await getMedia(item.codigoSeguimiento);
+      setSelMedia(m || []);
     } catch (e) {
       setError(e?.message || "No se pudo cargar detalle");
     } finally {
@@ -212,8 +266,10 @@ export default function AdminPage() {
     try {
       await action(selectedCode);
       await cargar();
-      const full = await getSolicitud(selectedCode);
+      const full = await adminGetSolicitud(selectedCode)
       setSelFull(full);
+      const m = await getMedia(selectedCode);
+      setSelMedia(m || []);
     } catch (e) {
       setError(e?.message || "Error ejecutando acción");
     } finally {
@@ -226,7 +282,7 @@ export default function AdminPage() {
   // -----------------------
   function renderPresupuestar() {
     return (
-      <TechCard style={{ marginTop: 14, padding: 14 }}>
+      <TechCard ref={detailRef} style={{ marginTop: 14, padding: 14 }}>
         <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Presupuestar</div>
 
         <div
@@ -573,6 +629,9 @@ export default function AdminPage() {
                     <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 700, fontSize: 12 }}>
                       {it.marca} {it.modelo} · {it.nombreCliente}
                     </div>
+                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75, fontWeight: 800 }}>
+                      Creada: {formatAR(it.createdAt)}
+                    </div>
                   </button>
                 );
               })}
@@ -601,16 +660,132 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 10, color: "#2b4b66", fontWeight: 700, lineHeight: 1.6 }}>
+              <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
                 <div>
-                  <b>Cliente:</b> {selFull.nombreCliente} · {selFull.telefonoCliente}
+                  <span style={{ fontWeight: 900 }}>Cliente:</span>{" "}
+                  <span>{selFull?.nombreCliente || "-"}</span>
                 </div>
+
                 <div>
-                  <b>Equipo:</b> {selFull.marca} {selFull.modelo}{" "}
-                  {selFull.imei ? `(IMEI: ${selFull.imei})` : ""}
+                  <span style={{ fontWeight: 900 }}>Equipo:</span>{" "}
+                  <span>
+                    {[selFull?.marca, selFull?.modelo].filter(Boolean).join(" ") || "-"}
+                  </span>
                 </div>
+
                 <div>
-                  <b>Falla:</b> {selFull.descripcionFalla}
+                  <span style={{ fontWeight: 900 }}>Falla:</span>{" "}
+                  <span>{selFull?.descripcionFalla || "-"}</span>
+                </div>
+
+                <div>
+                  <span style={{ fontWeight: 900 }}>Creada:</span>{" "}
+                  <span>{formatAR(selFull?.createdAt)}</span>
+                </div>
+
+                {selFull?.presupuestadoAt && (
+                  <div>
+                    <span style={{ fontWeight: 900 }}>Presupuestado:</span>{" "}
+                    <span>{formatAR(selFull.presupuestadoAt)}</span>
+                  </div>
+                )}
+                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <Button
+                    variant="success"
+                    disabled={!selFull?.telefonoCliente}
+                    onClick={() => {
+                      const msg =
+                        `Hola ${selFull?.nombreCliente || ""} 👋\n\n` +
+                        `Soy de Versus Reparaciones.\n` +
+                        `Tu solicitud: ${selFull?.codigoSeguimiento}\n` +
+                        `Equipo: ${[selFull?.marca, selFull?.modelo].filter(Boolean).join(" ")}\n` +
+                        `Falla: ${selFull?.descripcionFalla || "-"}\n\n` +
+                        `¿Cómo estás?`;
+                      window.open(whatsappLinkAR(selFull?.telefonoCliente, msg), "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    💬 Contactar (WhatsApp)
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    disabled={!selFull?.telefonoCliente}
+                    onClick={() => {
+                      const tel = onlyDigits(selFull?.telefonoCliente);
+                      window.location.href = `tel:${tel}`;
+                    }}
+                  >
+                    📞 Llamar
+                  </Button>
+                </div>
+                {/* MEDIA CLIENTE */}
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontWeight: 950, color: "#0b2a4a" }}>
+                    Fotos / Videos del cliente
+                  </div>
+
+                  {selMedia.length === 0 ? (
+                    <div style={{ color: "#2b4b66", fontWeight: 800, marginTop: 6 }}>
+                      No hay archivos enviados.
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginTop: 10,
+                      }}
+                    >
+                      {selMedia.map((url) => {
+                        const full = fullFileUrl(url);
+                        const lower = url.toLowerCase();
+
+                        const isVideo = lower.includes(".mp4");
+                        const isPdf = lower.includes(".pdf");
+
+                        return (
+                          <a
+                            key={url}
+                            href={full}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ textDecoration: "none" }}
+                          >
+                            <div
+                              style={{
+                                width: 150,
+                                border: "1px solid rgba(27,100,198,0.20)",
+                                borderRadius: 14,
+                                overflow: "hidden",
+                                background: "white",
+                              }}
+                            >
+                              {isVideo ? (
+                                <div style={{ padding: 12, fontWeight: 900 }}>
+                                  🎥 Ver video
+                                </div>
+                              ) : isPdf ? (
+                                <div style={{ padding: 12, fontWeight: 900 }}>
+                                  📄 Ver PDF
+                                </div>
+                              ) : (
+                                <img
+                                  src={full}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: 150,
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
