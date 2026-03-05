@@ -677,7 +677,10 @@ export default function AdminPage() {
                   <span style={{ fontWeight: 900 }}>Falla:</span>{" "}
                   <span>{selFull?.descripcionFalla || "-"}</span>
                 </div>
-
+                <div>
+                  <span style={{ fontWeight: 900 }}>Dirección retiro:</span>{" "}
+                  <span>{selFull?.direccionRetiro || "-"}</span>
+                </div>
                 <div>
                   <span style={{ fontWeight: 900 }}>Creada:</span>{" "}
                   <span>{formatAR(selFull?.createdAt)}</span>
