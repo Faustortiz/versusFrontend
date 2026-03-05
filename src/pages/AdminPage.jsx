@@ -15,6 +15,46 @@ import {
   getMedia,
 } from "../Api";
 
+function hasCoords(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180;
+}
+
+function googleMapsLink(lat, lng, address) {
+  if (hasCoords(lat, lng)) return `https://www.google.com/maps?q=${lat},${lng}`;
+  if (address) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return null;
+}
+
+// Embed OSM (sin API key)
+function osmEmbedUrl(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  const delta = 0.006; // “zoom” aproximado
+  const left = b - delta;
+  const right = b + delta;
+  const top = a + delta;
+  const bottom = a - delta;
+
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${a}%2C${b}`;
+}
+
+function addHours(dateIso, hours) {
+  const d = new Date(dateIso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Date(d.getTime() + hours * 60 * 60 * 1000);
+}
+
+function formatRemaining(ms) {
+  if (ms <= 0) return "Vencido";
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h <= 0) return `Vence en ${m} min`;
+  return `Vence en ${h}h ${m}m`;
+}
+
 function formatAR(iso) {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -681,6 +721,51 @@ export default function AdminPage() {
                   <span style={{ fontWeight: 900 }}>Dirección retiro:</span>{" "}
                   <span>{selFull?.direccionRetiro || "-"}</span>
                 </div>
+                {/* 🗺️ Ubicación cliente (mini mapa) */}
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontWeight: 950, color: "#0b2a4a" }}>📍 Ubicación cliente</div>
+
+                  {hasCoords(selFull?.latitud, selFull?.longitud) ? (
+                    <div style={{ marginTop: 8 }}>
+                      <div
+                        style={{
+                          borderRadius: 14,
+                          overflow: "hidden",
+                          border: "1px solid rgba(27,100,198,0.20)",
+                          background: "white",
+                        }}
+                      >
+                        <iframe
+                          title="Mapa cliente"
+                          src={osmEmbedUrl(selFull.latitud, selFull.longitud)}
+                          style={{ width: "100%", height: 220, border: 0 }}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+
+                      <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            const url = googleMapsLink(selFull.latitud, selFull.longitud, selFull?.direccionRetiro);
+                            if (url) window.open(url, "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          🧭 Abrir en Google Maps
+                        </Button>
+
+                        <Badge>
+                          {Number(selFull.latitud).toFixed(6)}, {Number(selFull.longitud).toFixed(6)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 800 }}>
+                      Sin ubicación (el cliente no marcó punto en el mapa).
+                    </div>
+                  )}
+                </div>
                 <div>
                   <span style={{ fontWeight: 900 }}>Creada:</span>{" "}
                   <span>{formatAR(selFull?.createdAt)}</span>
@@ -692,6 +777,22 @@ export default function AdminPage() {
                     <span>{formatAR(selFull.presupuestadoAt)}</span>
                   </div>
                 )}
+                {selFull?.estado === "PRESUPUESTADO" && selFull?.presupuestadoAt ? (() => {
+                  const vence = addHours(selFull.presupuestadoAt, 48);
+                  if (!vence) return null;
+                  const ms = vence.getTime() - Date.now();
+                  const vencido = ms <= 0;
+
+                  return (
+                    <div style={{ marginTop: 6 }}>
+                      <span style={{ fontWeight: 900 }}>Vence:</span>{" "}
+                      <span>{formatAR(vence.toISOString())}</span>{" "}
+                      <span style={{ fontWeight: 900, marginLeft: 8, color: vencido ? "#b91c1c" : "#0b2a4a" }}>
+                        {vencido ? "⚠️ Presupuesto vencido" : `⏳ ${formatRemaining(ms)}`}
+                      </span>
+                    </div>
+                  );
+                })() : null}
                 <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <Button
                     variant="success"
