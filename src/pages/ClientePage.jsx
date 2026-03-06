@@ -216,6 +216,8 @@ export default function ClientePage({ mode }) {
     // ¿El cliente eligió usar ubicación? (si no eligió, no validamos geofence)
     const hasLocation = typeof lat === "number" && typeof lng === "number";
 
+    const [fileInputKey, setFileInputKey] = useState(0);
+
     function setField(name, value) {
         setForm((prev) => ({ ...prev, [name]: value }));
     }
@@ -357,6 +359,9 @@ export default function ClientePage({ mode }) {
         if (hasLocation && outOfService) {
             return setError("Aún no prestamos servicios a ese lugar… próximamente se habilitará el servicio.");
         }
+        if (mediaFiles.length === 0) {
+            return setError("Debés subir una foto de la parte trasera del equipo.");
+        }
 
         setLoading(true);
         try {
@@ -374,6 +379,7 @@ export default function ClientePage({ mode }) {
 
             const creada = await crearSolicitud(payload);
 
+
             // 👇 para mostrar código + fecha sin esperar buscar()
             setData(creada);
 
@@ -389,6 +395,24 @@ export default function ClientePage({ mode }) {
             }
 
             if (code) await buscar(code);
+
+            // ✅ limpiar formulario después de crear correctamente
+            setForm({
+                nombreCliente: "",
+                telefonoCliente: "",
+                direccionRetiro: "",
+                marca: "",
+                modelo: "",
+                descripcionFalla: "",
+            });
+            setMediaFiles([]);
+            setLat(null);
+            setLng(null);
+            setKmAway(null);
+            setOutOfService(false);
+            setLocStatus("");
+            setShowMap(false);
+            setFileInputKey((k) => k + 1);
         } catch (e) {
             setError(e?.message || "Error creando solicitud");
         } finally {
@@ -641,8 +665,15 @@ export default function ClientePage({ mode }) {
                     </div>
 
                     <div style={{ marginTop: 12 }}>
-                        <div style={{ fontWeight: 900, color: "#0b2a4a" }}>Fotos/Video (opcional, máx 3)</div>
+                        <div style={{ fontWeight: 900, color: "#0b2a4a" }}>
+                            Foto trasera del equipo (obligatoria)
+                        </div>
+
+                        <div style={{ marginTop: 6, color: "#2b4b66", fontWeight: 800, fontSize: 12 }}>
+                            Necesitamos una foto de la parte trasera del celular para verificar correctamente el modelo antes de avanzar.
+                        </div>
                         <input
+                            key={fileInputKey}
                             type="file"
                             multiple
                             accept="image/*,video/mp4"

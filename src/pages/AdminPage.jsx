@@ -339,6 +339,23 @@ export default function AdminPage() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+  useEffect(() => {
+    if (!selFull) return;
+
+    if (selFull.presupuestoMonto != null) {
+      setPagoMonto(String(selFull.pagoMonto ?? selFull.presupuestoMonto));
+    } else {
+      setPagoMonto("");
+    }
+
+    if (selFull.metodoPago) {
+      setPagoMetodo(selFull.metodoPago);
+    } else {
+      setPagoMetodo("EFECTIVO");
+    }
+
+    setPagoRef(selFull.pagoReferencia || "");
+  }, [selFull]);
 
   async function seleccionar(item) {
     setSel(item);
@@ -392,6 +409,27 @@ export default function AdminPage() {
     downloadCsv(`versus-entregados-${desde}-a-${hasta}.csv`, csv);
   }
 
+  function renderPagado() {
+    return (
+      <TechCard style={{ marginTop: 14, padding: 14 }}>
+        <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Pago confirmado</div>
+
+        <div style={{ marginTop: 8, color: "#2b4b66", fontWeight: 700, fontSize: 12 }}>
+          El pago ya fue registrado. Falta marcar la entrega del equipo.
+        </div>
+
+        <div style={{ marginTop: 10 }}>
+          <Button
+            variant="primary"
+            disabled={!canAct || loading}
+            onClick={() => run((code) => adminMarcarEntregado(code))}
+          >
+            Marcar entregado
+          </Button>
+        </div>
+      </TechCard>
+    );
+  }
   function renderPresupuestar() {
     return (
       <TechCard ref={detailRef} style={{ marginTop: 14, padding: 14 }}>
@@ -659,6 +697,9 @@ export default function AdminPage() {
 
       case "LISTO_PARA_ENTREGA":
         return renderPago();
+      
+      case "PAGADO":
+        return renderPagado();
 
       case "PAGO_PENDIENTE_VERIFICACION":
         return renderConfirmarDesdeComprobante();
@@ -842,6 +883,24 @@ export default function AdminPage() {
                   <span style={{ fontWeight: 900 }}>Falla:</span>{" "}
                   <span>{selFull?.descripcionFalla || "-"}</span>
                 </div>
+                {selFull?.presupuestoMonto != null && (
+                  <div>
+                    <span style={{ fontWeight: 900 }}>Presupuesto:</span>{" "}
+                    <span>
+                      {new Intl.NumberFormat("es-AR", {
+                        style: "currency",
+                        currency: "ARS",
+                        maximumFractionDigits: 0,
+                      }).format(Number(selFull.presupuestoMonto))}
+                    </span>
+                  </div>
+                )}
+                {selFull?.metodoPago && (
+                  <div>
+                    <span style={{ fontWeight: 900 }}>Método elegido:</span>{" "}
+                    <span>{selFull.metodoPago}</span>
+                  </div>
+                )}
 
                 <div>
                   <span style={{ fontWeight: 900 }}>Dirección retiro:</span>{" "}
