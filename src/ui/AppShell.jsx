@@ -1,6 +1,4 @@
 // src/ui/AppShell.jsx
-
-// src/ui/AppShell.jsx
 import "./AppShell.css";
 
 export default function AppShell({ children }) {
