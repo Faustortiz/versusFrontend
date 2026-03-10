@@ -565,7 +565,7 @@ export default function ClientePage({ mode }) {
     return (
         <PageShell
             title={showCrear && !showSeg ? "Crear solicitud" : "Seguimiento"}
-            subtitle="Versus Reparaciones · Retiro y entrega en el día"
+            subtitle="Versus Reparaciones · Retiro y entrega a domicilio"
         >
             {error && (
                 <div style={{ margin: "0 auto 12px", maxWidth: 980, color: "crimson", fontWeight: 800 }}>

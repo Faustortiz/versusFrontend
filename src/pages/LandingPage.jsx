@@ -289,7 +289,7 @@ export default function LandingPage() {
           </div>
 
           <div style={{ marginTop: 10, color: "#2b4b66", fontSize: 12, fontWeight: 700 }}>
-            Si estás en celular, los pasos se acomodan uno abajo del otro automáticamente.
+           {/* Si estás en celular, los pasos se acomodan uno abajo del otro automáticamente.*/}
           </div>
         </TechCard>
 
