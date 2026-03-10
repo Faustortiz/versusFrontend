@@ -18,6 +18,7 @@ import {
 const API_HOST = import.meta.env.VITE_API_BASE_URL || "http://localhost:9090";
 const LS_LAST_CODE_KEY = "versus_last_tracking_code";
 const BUDGET_EXPIRES_HOURS = 48;
+const WARRANTY_DAYS = 10;
 
 // 📍 Zona de cobertura (geofence)
 const SERVICE_BASE = { lat: -26.8207735, lng: -65.0953183 }; // Ingenio La Florida
@@ -87,6 +88,28 @@ function msToHuman(ms) {
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
     return `${h}h ${m}m`;
+}
+
+function isDeliveredExpired(solicitud) {
+    if (!solicitud) return false;
+    if (solicitud.estado !== "ENTREGADO") return false;
+    if (!solicitud.entregadoAt) return false;
+
+    const entrega = new Date(solicitud.entregadoAt);
+    if (Number.isNaN(entrega.getTime())) return false;
+
+    const vencimiento = new Date(entrega);
+    vencimiento.setDate(vencimiento.getDate() + WARRANTY_DAYS);
+
+    return Date.now() > vencimiento.getTime();
+}
+
+function getWarrantyEndDate(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setDate(d.getDate() + WARRANTY_DAYS);
+    return d.toISOString();
 }
 
 function TechCard({ children }) {
@@ -160,6 +183,59 @@ function EstadoBadge({ estado }) {
             {estado}
         </span>
     );
+}
+
+function EstadoNotaCliente({ data }) {
+    if (!data) return null;
+
+    if (data.estado === "RETIRO_PROGRAMADO") {
+        return (
+            <div
+                style={{
+                    marginTop: 16,
+                    padding: 14,
+                    borderRadius: 14,
+                    border: "1px solid rgba(245, 158, 11, 0.35)",
+                    background: "rgba(255, 247, 237, 0.95)",
+                    color: "#9a3412",
+                }}
+            >
+                <div style={{ fontWeight: 950, marginBottom: 4 }}>🚚 Retiro programado</div>
+                <div style={{ fontWeight: 800 }}>
+                    Tu retiro fue programado. Nuestro servicio pasará por tu domicilio durante el día acordado.
+                </div>
+            </div>
+        );
+    }
+
+    if (data.estado === "ENTREGADO") {
+        const warrantyEnd = getWarrantyEndDate(data.entregadoAt);
+
+        return (
+            <div
+                style={{
+                    marginTop: 16,
+                    padding: 14,
+                    borderRadius: 14,
+                    border: "1px solid rgba(34, 197, 94, 0.28)",
+                    background: "rgba(240, 253, 244, 0.95)",
+                    color: "#166534",
+                }}
+            >
+                <div style={{ fontWeight: 950, marginBottom: 4 }}>✅ Equipo entregado</div>
+                <div style={{ fontWeight: 800 }}>
+                    Tu teléfono ya fue entregado. Contás con 10 días de garantía por el servicio realizado.
+                </div>
+                {warrantyEnd && (
+                    <div style={{ marginTop: 6, fontWeight: 800, fontSize: 12 }}>
+                        Garantía visible hasta: <b>{formatAR(warrantyEnd)}</b>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return null;
 }
 
 export default function ClientePage({ mode }) {
@@ -316,6 +392,14 @@ export default function ClientePage({ mode }) {
                 setError("No se encontró ese código.");
                 return;
             }
+
+            if (isDeliveredExpired(s)) {
+                setData(null);
+                setMedia([]);
+                setError("Este seguimiento ya no se encuentra disponible porque finalizó el período de garantía.");
+                return;
+            }
+
             setData(s);
 
             const m = await getMedia(c);
@@ -378,7 +462,6 @@ export default function ClientePage({ mode }) {
             };
 
             const creada = await crearSolicitud(payload);
-
 
             // 👇 para mostrar código + fecha sin esperar buscar()
             setData(creada);
@@ -477,6 +560,7 @@ export default function ClientePage({ mode }) {
     }
 
     const estado = useMemo(() => data?.estado, [data]);
+    const isEntregado = estado === "ENTREGADO";
 
     return (
         <PageShell
@@ -809,7 +893,9 @@ export default function ClientePage({ mode }) {
                                     </div>
                                 </div>
 
-                                {data.presupuestoMonto && (
+                                <EstadoNotaCliente data={data} />
+
+                                {!isEntregado && data.presupuestoMonto && (
                                     <div style={{ marginTop: 14 }}>
                                         <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Presupuesto</div>
                                         <div>Monto: ${data.presupuestoMonto}</div>
@@ -844,13 +930,13 @@ export default function ClientePage({ mode }) {
                                     </div>
                                 )}
 
-                                {!loading && !error && (
+                                {!isEntregado && !loading && !error && (
                                     <div style={{ marginTop: 10, color: "#2b4b66", fontSize: 12, fontWeight: 800 }}>
                                         Método de pago: <b>{data.metodoPago || "SIN_ELEGIR"}</b>
                                     </div>
                                 )}
 
-                                {data.estado === "PRESUPUESTADO" && (
+                                {!isEntregado && data.estado === "PRESUPUESTADO" && (
                                     <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                                         <button onClick={onAceptar} disabled={loading}>
                                             Aceptar
@@ -861,7 +947,7 @@ export default function ClientePage({ mode }) {
                                     </div>
                                 )}
 
-                                {(data.estado === "LISTO_PARA_ENTREGA" || data.estado === "PAGO_PENDIENTE_VERIFICACION") && (
+                                {!isEntregado && (data.estado === "LISTO_PARA_ENTREGA" || data.estado === "PAGO_PENDIENTE_VERIFICACION") && (
                                     <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px dashed rgba(27,100,198,0.25)" }}>
                                         <h3 style={{ margin: 0, color: "#0b2a4a" }}>Pago</h3>
 
@@ -947,17 +1033,6 @@ export default function ClientePage({ mode }) {
                                                     <div style={{ marginTop: 12 }}>
                                                         <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Pago en efectivo (local)</div>
                                                         <div style={{ marginTop: 8 }}>
-                                                            {/*<div>Dirección: {data.direccionLocal}</div>
-                              <div>Horario: {data.horarioLocal}</div>
-                             
-                              {data.mapsLocal && (
-                                <div>
-                                  Mapa:{" "}
-                                  <a href={data.mapsLocal} target="_blank" rel="noreferrer">
-                                    Abrir mapa
-                                  </a>
-                                </div>
-                              )}*/}
                                                             <div>NOTA: <br /> {data.mensaje} <br /> {data.gracias}</div>
                                                         </div>
 
@@ -971,47 +1046,51 @@ export default function ClientePage({ mode }) {
                                     </div>
                                 )}
 
-                                <div style={{ marginTop: 16 }}>
-                                    <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Fotos/Videos enviados</div>
-                                    {media.length === 0 ? (
-                                        <div style={{ color: "#2b4b66", fontWeight: 800 }}>No hay archivos.</div>
-                                    ) : (
-                                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
-                                            {media.map((url) => {
-                                                const full = fullFileUrl(url);
-                                                const lower = url.toLowerCase();
-                                                const isVideo = lower.includes(".mp4");
-                                                const isPdf = lower.includes(".pdf");
+                                {!isEntregado && (
+                                    <div style={{ marginTop: 16 }}>
+                                        <div style={{ fontWeight: 950, color: "#0b2a4a" }}>Fotos/Videos enviados</div>
+                                        {media.length === 0 ? (
+                                            <div style={{ color: "#2b4b66", fontWeight: 800 }}>No hay archivos.</div>
+                                        ) : (
+                                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+                                                {media.map((url) => {
+                                                    const full = fullFileUrl(url);
+                                                    const lower = url.toLowerCase();
+                                                    const isVideo = lower.includes(".mp4");
+                                                    const isPdf = lower.includes(".pdf");
 
-                                                return (
-                                                    <a key={url} href={full} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                                                        <div
-                                                            style={{
-                                                                width: 170,
-                                                                border: "1px solid rgba(27,100,198,0.20)",
-                                                                borderRadius: 14,
-                                                                overflow: "hidden",
-                                                                background: "white",
-                                                            }}
-                                                        >
-                                                            {isVideo ? (
-                                                                <div style={{ padding: 12, fontWeight: 900 }}>🎥 Ver video</div>
-                                                            ) : isPdf ? (
-                                                                <div style={{ padding: 12, fontWeight: 900 }}>📄 Ver PDF</div>
-                                                            ) : (
-                                                                <img src={full} alt="" style={{ width: "100%", height: 170, objectFit: "cover" }} />
-                                                            )}
-                                                        </div>
-                                                    </a>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
+                                                    return (
+                                                        <a key={url} href={full} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                                                            <div
+                                                                style={{
+                                                                    width: 170,
+                                                                    border: "1px solid rgba(27,100,198,0.20)",
+                                                                    borderRadius: 14,
+                                                                    overflow: "hidden",
+                                                                    background: "white",
+                                                                }}
+                                                            >
+                                                                {isVideo ? (
+                                                                    <div style={{ padding: 12, fontWeight: 900 }}>🎥 Ver video</div>
+                                                                ) : isPdf ? (
+                                                                    <div style={{ padding: 12, fontWeight: 900 }}>📄 Ver PDF</div>
+                                                                ) : (
+                                                                    <img src={full} alt="" style={{ width: "100%", height: 170, objectFit: "cover" }} />
+                                                                )}
+                                                            </div>
+                                                        </a>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
-                                <div style={{ marginTop: 14, color: "#2b4b66", fontSize: 12, fontWeight: 800 }}>
-                                    Tip: si cambiaste estado desde el taller, tocá “Buscar” para refrescar.
-                                </div>
+                                {!isEntregado && (
+                                    <div style={{ marginTop: 14, color: "#2b4b66", fontSize: 12, fontWeight: 800 }}>
+                                        Tip: si cambiaste estado desde el taller, tocá “Buscar” para refrescar.
+                                    </div>
+                                )}
                             </div>
                         )}
                     </TechCard>
