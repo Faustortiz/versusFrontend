@@ -697,7 +697,7 @@ export default function AdminPage() {
 
       case "LISTO_PARA_ENTREGA":
         return renderPago();
-      
+
       case "PAGADO":
         return renderPagado();
 
@@ -905,6 +905,14 @@ export default function AdminPage() {
                 <div>
                   <span style={{ fontWeight: 900 }}>Dirección retiro:</span>{" "}
                   <span>{selFull?.direccionRetiro || "-"}</span>
+                </div>
+                <div>
+                  <span style={{ fontWeight: 900 }}>Programado Para:</span>{" "}
+                  <span>
+                    {selFull?.retiroProgramadoPara
+                      ? new Date(selFull.retiroProgramadoPara).toLocaleDateString("es-AR")
+                      : "-"}
+                  </span>
                 </div>
 
                 <div style={{ marginTop: 10 }}>

@@ -89,6 +89,12 @@ function msToHuman(ms) {
     const m = totalMin % 60;
     return `${h}h ${m}m`;
 }
+function isBudgetExpired(presupuestadoAt) {
+    if (!presupuestadoAt) return false;
+    const exp = addHoursISO(presupuestadoAt, BUDGET_EXPIRES_HOURS);
+    if (!exp) return false;
+    return new Date(exp).getTime() <= Date.now();
+}
 
 function isDeliveredExpired(solicitud) {
     if (!solicitud) return false;
@@ -168,6 +174,19 @@ function PageShell({ title, subtitle, children, variant = "dark" }) {
 }
 
 function EstadoBadge({ estado }) {
+    if (estado == "ACEPTADO") {
+        estado = "PRESUPUESTO ACEPTADO"
+    } else if (estado == "RETIRO_PROGRAMADO") {
+        estado = "RETIRO PROGRAMADO"
+    } else if (estado == "RECIBIDO_EN_TALLER") {
+        estado = "RECIBIDO EN EL TALLER"
+    } else if (estado == "EN_REPARACION") {
+        estado = "EN REPARACION"
+    } else if (estado == "LISTO_PARA_ENTREGA") {
+        estado = "LISTO PARA ENTREGA"
+    }
+
+
     return (
         <span
             style={{
@@ -202,7 +221,8 @@ function EstadoNotaCliente({ data }) {
             >
                 <div style={{ fontWeight: 950, marginBottom: 4 }}>🚚 Retiro programado</div>
                 <div style={{ fontWeight: 800 }}>
-                    Tu retiro fue programado. Nuestro servicio pasará por tu domicilio durante el día acordado.
+                    El retiro de tu equipo fue programado para <b>{formatAR(data.retiroProgramadoPara).split(",")[0]}</b>.
+                    Nuestro servicio pasará por tu domicilio de 10 a 22hs.- ¡ Te estaremos contactando !
                 </div>
             </div>
         );
@@ -504,6 +524,11 @@ export default function ClientePage({ mode }) {
     }
 
     async function onAceptar() {
+        if (isBudgetExpired(data?.presupuestadoAt)) {
+            setError("El presupuesto ya venció. Debés generar una nueva solicitud.");
+            return;
+        }
+
         setError("");
         setLoading(true);
         try {
@@ -515,8 +540,12 @@ export default function ClientePage({ mode }) {
             setLoading(false);
         }
     }
-
     async function onRechazar() {
+        if (isBudgetExpired(data?.presupuestadoAt)) {
+            setError("El presupuesto ya venció. Debés generar una nueva solicitud.");
+            return;
+        }
+
         setError("");
         setLoading(true);
         try {
@@ -561,6 +590,9 @@ export default function ClientePage({ mode }) {
 
     const estado = useMemo(() => data?.estado, [data]);
     const isEntregado = estado === "ENTREGADO";
+
+    const isPresupuestoVencido =
+        data?.estado === "PRESUPUESTADO" && isBudgetExpired(data?.presupuestadoAt);
 
     return (
         <PageShell
@@ -925,6 +957,22 @@ export default function ClientePage({ mode }) {
                                                         })()}
                                                     </b>
                                                 </div>
+
+                                                {isPresupuestoVencido && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 12,
+                                                            padding: 12,
+                                                            borderRadius: 12,
+                                                            border: "1px solid rgba(220,38,38,0.25)",
+                                                            background: "rgba(255,245,245,0.95)",
+                                                            color: "#b91c1c",
+                                                            fontWeight: 900,
+                                                        }}
+                                                    >
+                                                        El tiempo para responder este presupuesto venció. Debés generar una nueva solicitud para continuar.
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -932,11 +980,11 @@ export default function ClientePage({ mode }) {
 
                                 {!isEntregado && !loading && !error && (
                                     <div style={{ marginTop: 10, color: "#2b4b66", fontSize: 12, fontWeight: 800 }}>
-                                        Método de pago: <b>{data.metodoPago || "SIN_ELEGIR"}</b>
+                                        Método de pago: <b>{data.metodoPago || ""}</b>
                                     </div>
                                 )}
 
-                                {!isEntregado && data.estado === "PRESUPUESTADO" && (
+                                {!isEntregado && data.estado === "PRESUPUESTADO" && !isPresupuestoVencido && (
                                     <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                                         <button onClick={onAceptar} disabled={loading}>
                                             Aceptar
